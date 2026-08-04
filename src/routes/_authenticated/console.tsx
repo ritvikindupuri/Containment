@@ -218,6 +218,7 @@ function ConsolePage() {
   const policyDone = Boolean(session?.policy_approved);
   const examplesDone = (session?.examples_run ?? 0) > 0;
   const runDone = Boolean(session?.live_run_done);
+  const auditDone = flow.stageFor("audit").done;
   const activeKeys = (keys.data ?? []).filter((row) => !row.revoked_at);
   const keysDone = activeKeys.length > 0;
 
