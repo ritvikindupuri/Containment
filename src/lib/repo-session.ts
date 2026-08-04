@@ -11,6 +11,7 @@ export type RepoSession = {
   policy_approved: boolean;
   policy_version: number | null;
   examples_run: number;
+  live_run_done?: boolean;
   ingested_at: string;
 };
 
@@ -56,6 +57,7 @@ export function useRepoSession() {
       policy_approved: false,
       policy_version: null,
       examples_run: 0,
+      live_run_done: false,
       ingested_at: new Date().toISOString(),
     });
   }, []);

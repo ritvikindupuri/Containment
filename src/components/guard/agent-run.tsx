@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { ingestRepo, type AgentRunPlan } from "@/lib/agent-run.functions";
+import { useRepoSession } from "@/lib/repo-session";
 import { evaluateAgentStep } from "@/lib/guard.functions";
 import { VerdictBadge, RiskMeter } from "@/components/guard/verdict-badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ export function AgentRun() {
   const ingest = useServerFn(ingestRepo);
   const evaluate = useServerFn(evaluateAgentStep);
 
+  const { session, start, update } = useRepoSession();
   const [url, setUrl] = useState("");
   const [plan, setPlan] = useState<AgentRunPlan | null>(null);
   const [results, setResults] = useState<Record<number, StepResult>>({});
@@ -59,6 +61,7 @@ export function AgentRun() {
     mutationFn: (value: string) => ingest({ data: { url: value } }),
     onSuccess: (value) => {
       setPlan(value as AgentRunPlan);
+      start(value as AgentRunPlan);
       setResults({});
       setActiveIndex(null);
       setOpen(null);
@@ -81,6 +84,7 @@ export function AgentRun() {
         await new Promise((resolve) => setTimeout(resolve, 260));
       }
       queryClient.invalidateQueries({ queryKey: ["decisions"] });
+      update({ live_run_done: true });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "The run stopped early");
     } finally {
@@ -88,6 +92,10 @@ export function AgentRun() {
       setRunning(false);
     }
   }
+
+  useEffect(() => {
+    if (session?.plan && !plan) setPlan(session.plan);
+  }, [session, plan]);
 
   const done = Object.values(results);
   const blocked = done.filter((r) => r.verdict === "deny").length;
