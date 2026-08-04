@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/guard/app-shell";
+import { FlowGate } from "@/components/guard/flow-gate";
 import { POLICY_SAVED_KEY } from "@/components/guard/getting-started";
 import { getPolicy, listPolicyVersions, updatePolicy, type PolicyVersionRow } from "@/lib/guard.functions";
 import { Button } from "@/components/ui/button";
@@ -107,6 +108,7 @@ function PolicyPage() {
 
   return (
     <AppShell>
+      <FlowGate stage="policy">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <span className="label-mono">Policy</span>
@@ -287,6 +289,7 @@ function PolicyPage() {
           )}
         </CardContent>
       </Card>
+      </FlowGate>
     </AppShell>
   );
 }
