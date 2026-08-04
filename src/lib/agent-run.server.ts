@@ -1,4 +1,5 @@
-import { actionSchema, type ActionInput } from "@/lib/guard/schemas";
+import { actionSchema } from "@/lib/guard/schemas";
+import type { ActionType } from "@/lib/guard/types";
 
 export type RepoContext = {
   owner: string;
@@ -12,10 +13,23 @@ export type RepoContext = {
   scanned_files: string[];
 };
 
+export type AgentAction = {
+  type: ActionType;
+  command?: string;
+  path?: string;
+  content?: string;
+  url?: string;
+  body?: string;
+  tool?: string;
+  args?: Record<string, string | number | boolean | null>;
+  untrusted_context?: string;
+  agent_id?: string;
+};
+
 export type PlannedStep = {
   title: string;
   why: string;
-  action: ActionInput;
+  action: AgentAction;
 };
 
 const GITHUB = "https://api.github.com";
@@ -160,7 +174,10 @@ ${excerpts || "(no setup files found)"}`,
     steps.push({
       title: String(raw.title ?? "Agent step").slice(0, 120),
       why: String(raw.why ?? "").slice(0, 300),
-      action: { ...candidate.data, agent_id: `${context.owner}/${context.repo}` },
+      action: {
+        ...(candidate.data as AgentAction),
+        agent_id: `${context.owner}/${context.repo}`,
+      },
     });
     if (steps.length >= 14) break;
   }
