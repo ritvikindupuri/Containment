@@ -361,8 +361,8 @@ export function buildRunReport(input: RunReportInput): { blob: Blob; filename: s
   entries.forEach((entry) => {
     drawTableRow(doc, entry);
   });
+  doc.space(14);
   if (notRun > 0) {
-    doc.space(6);
     doc.paragraph(
       `${notRun} planned action${notRun === 1 ? " was" : "s were"} never evaluated because the run stopped early (a blocked action or a pending approval ended the sequence).`,
       { size: 8.5, muted: true },
