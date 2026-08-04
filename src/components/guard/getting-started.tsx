@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Check, ArrowRight, Compass } from "lucide-react";
 import { getPolicy, listDecisions, listKeys } from "@/lib/guard.functions";
 import { Button } from "@/components/ui/button";
+import { useRepoSession } from "@/lib/repo-session";
 import { cn } from "@/lib/utils";
 
 export const POLICY_SAVED_KEY = "containment.policy.saved";
@@ -29,6 +30,7 @@ export function GettingStarted() {
   });
   const policy = useQuery({ queryKey: ["policy"], queryFn: () => fetchPolicy() as Promise<{ id: string } | null> });
 
+  const { session } = useRepoSession();
   const [policySaved, setPolicySaved] = useState(false);
   useEffect(() => {
     setPolicySaved(window.localStorage.getItem(POLICY_SAVED_KEY) === "1");
