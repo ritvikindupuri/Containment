@@ -272,6 +272,13 @@ run_command("npm install lodash")  # only reached when allowed`,
       </p>
 
       <div className="mt-8 max-w-4xl space-y-4">
+        <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
+          <p className="text-sm text-foreground">
+            <strong>Two phases, one goal.</strong> Steps 1–4 run Containment’s built-in simulator so you can see the guard
+            work without touching your real agent. Step 5 is the production handoff: you create a key and paste the
+            snippet into your actual agent so it asks Containment before every real action.
+          </p>
+        </div>
         <FlowStep
           index={1}
           title="Point us at a repository"
@@ -534,12 +541,21 @@ run_command("npm install lodash")  # only reached when allowed`,
           </div>
         </FlowStep>
 
+        <div className="relative py-4">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+            <div className="w-full border-t border-border" />
+          </div>
+          <div className="relative flex justify-center">
+            <span className="bg-background px-3 text-xs font-medium text-muted-foreground">Production handoff</span>
+          </div>
+        </div>
+
         <FlowStep
           index={5}
-          title="Connect your real agent"
-          summary="Create a key and drop the snippet into your agent so it asks Containment before every action."
+          title="Deploy: connect your real agent"
+          summary="Create a key and drop the snippet into your actual agent so it asks Containment before every real action."
           locked={!runDone}
-          lockedHint="Finish a live run first — then wire the same check into your own agent."
+          lockedHint="Finish the simulator live run first — then wire the same check into your own agent."
           done={keysDone}
           active={runDone && !keysDone}
         >

@@ -39,8 +39,17 @@ export function KeyExplainer() {
         <p className="label-mono text-primary">What is this for?</p>
         <p className="mt-1 text-sm text-muted-foreground">
           An agent key is how your <em>real</em> agent — the one running in your codebase, CI job or product — talks to
-          Containment. The playground above is you testing by hand; the key is how the agent does it automatically,
-          every time it wants to act.
+          Containment. The simulator you just watched runs inside Containment and does not need a key; your actual
+          agent needs a key so we know which workspace and policy the request belongs to.
+        </p>
+      </div>
+
+      <div className="rounded-md border border-border bg-card p-3">
+        <p className="label-mono">Why does the human create the key?</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          The agent must never be able to mint its own credentials — that would let a compromised agent cover its tracks
+          or spin up an unguarded copy. You create the key once, store it in your secrets manager, and your agent uses
+          it for every guard call.
         </p>
       </div>
 
