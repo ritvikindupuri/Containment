@@ -1,16 +1,18 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ShieldHalf, LayoutDashboard, KeyRound, SlidersHorizontal, LogOut } from "lucide-react";
+import { ShieldHalf, LayoutDashboard, KeyRound, SlidersHorizontal, LogOut, PlayCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
+  { to: "/agent-run", label: "Live run", icon: PlayCircle },
   { to: "/dashboard", label: "Audit", icon: LayoutDashboard },
   { to: "/console", label: "Console", icon: KeyRound },
   { to: "/policy", label: "Policy", icon: SlidersHorizontal },
 ] as const;
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();

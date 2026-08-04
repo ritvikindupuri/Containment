@@ -13,7 +13,7 @@ type Step = {
   title: string;
   body: string;
   done: boolean;
-  to: "/policy" | "/console" | "/dashboard";
+  to: "/policy" | "/console" | "/dashboard" | "/agent-run";
   cta: string;
 };
 
@@ -23,7 +23,10 @@ export function GettingStarted() {
   const fetchPolicy = useServerFn(getPolicy);
 
   const keys = useQuery({ queryKey: ["keys"], queryFn: () => fetchKeys() as Promise<unknown[]> });
-  const decisions = useQuery({ queryKey: ["decisions"], queryFn: () => fetchDecisions() as Promise<unknown[]> });
+  const decisions = useQuery({
+    queryKey: ["decisions"],
+    queryFn: () => fetchDecisions() as Promise<Array<{ source?: string }>>,
+  });
   const policy = useQuery({ queryKey: ["policy"], queryFn: () => fetchPolicy() as Promise<{ id: string } | null> });
 
   const [policySaved, setPolicySaved] = useState(false);
@@ -35,6 +38,9 @@ export function GettingStarted() {
   const hasPolicy = Boolean(policy.data?.id);
   const hasDecision = (decisions.data ?? []).length > 0;
   const hasKey = (keys.data ?? []).length > 0;
+  const hasAgentRun = (decisions.data ?? []).some(
+    (row) => (row as { source?: string }).source === "agent_run",
+  );
 
   const steps: Step[] = [
     {
@@ -45,14 +51,21 @@ export function GettingStarted() {
       cta: "Open policy",
     },
     {
-      title: "2. Try an action in the playground",
+      title: "2. Watch a real agent get guarded",
+      body: "Paste any public GitHub repo. An AI agent plans the exact commands it would run on it, then Containment rules on each one live — allowed, gated or blocked.",
+      done: hasAgentRun,
+      to: "/agent-run",
+      cta: "Run an agent",
+    },
+    {
+      title: "3. Try your own action in the playground",
       body: "Paste a command, path or URL your agent might run and see the verdict instantly.",
       done: hasDecision,
       to: "/console",
       cta: "Open playground",
     },
     {
-      title: "3. Connect your agent",
+      title: "4. Connect your own agent",
       body: "A key lets your real agent ask Containment before it acts. Create one, then paste the ready-made cURL / TypeScript / Python snippet into your agent code.",
       done: hasKey,
       to: "/console",
@@ -70,12 +83,12 @@ export function GettingStarted() {
       <div className="flex items-start gap-3">
         <Compass className="mt-0.5 size-5 shrink-0 text-primary" />
         <div className="min-w-0 flex-1">
-          <h2 className="text-base font-semibold">Start here — three steps to a guarded agent</h2>
+          <h2 className="text-base font-semibold">Start here — four steps to a guarded agent</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Containment checks every action your AI agent wants to take and returns allow, needs approval or deny.
           </p>
 
-          <ol className="mt-4 grid gap-3 md:grid-cols-3">
+          <ol className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {steps.map((step) => (
               <li
                 key={step.title}
