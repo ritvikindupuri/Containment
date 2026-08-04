@@ -256,3 +256,36 @@ export const evaluateFromConsole = createServerFn({ method: "POST" })
       thresholds: { deny: row.deny_threshold, approval: row.approval_threshold },
     };
   });
+
+export const evaluateAgentStep = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => actionSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const row = await ensurePolicy(supabase as AuthedSupabase, userId);
+    const policy = toPolicy(row);
+    const result = evaluateAction(data as GuardAction, policy);
+
+    const logged = await supabase.from("decisions").insert({
+      user_id: userId,
+      policy_id: row.id,
+      policy_version: row.version,
+      agent_id: data.agent_id ?? "agent-run",
+      source: "agent_run",
+      action_type: result.action_type,
+      verdict: result.intended_verdict,
+      risk_score: result.risk_score,
+      enforced: result.enforced,
+      reasons: JSON.parse(JSON.stringify(result.findings)),
+      action: JSON.parse(JSON.stringify(data)),
+    });
+    if (logged.error) throw new Error(logged.error.message);
+
+    return {
+      ...result,
+      policy_version: row.version,
+      policy_name: row.name,
+      policy_mode: row.mode,
+      thresholds: { deny: row.deny_threshold, approval: row.approval_threshold },
+    };
+  });
