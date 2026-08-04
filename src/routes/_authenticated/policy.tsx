@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/guard/app-shell";
+import { POLICY_SAVED_KEY } from "@/components/guard/getting-started";
 import { getPolicy, updatePolicy } from "@/lib/guard.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +77,7 @@ function PolicyPage() {
         },
       }),
     onSuccess: () => {
+      window.localStorage.setItem(POLICY_SAVED_KEY, "1");
       queryClient.invalidateQueries({ queryKey: ["policy"] });
       toast.success("Policy saved — new decisions use it immediately.");
     },

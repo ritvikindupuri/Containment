@@ -1,9 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { ShieldAlert, ShieldCheck, ShieldQuestion, Inbox } from "lucide-react";
 import { AppShell } from "@/components/guard/app-shell";
+import { GettingStarted } from "@/components/guard/getting-started";
 import { VerdictBadge, RiskMeter } from "@/components/guard/verdict-badge";
 import { listDecisions } from "@/lib/guard.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,6 +68,7 @@ function DashboardPage() {
 
   return (
     <AppShell>
+      <GettingStarted />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <span className="label-mono">Audit trail</span>
@@ -110,8 +112,11 @@ function DashboardPage() {
           ) : visible.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-sm text-muted-foreground">
-                No decisions yet. Send an action from the console or your agent runtime.
+                Nothing here yet. Run an action through the playground and it will appear within seconds.
               </p>
+              <Button asChild size="sm" className="mt-4">
+                <Link to="/console">Open the playground</Link>
+              </Button>
             </div>
           ) : (
             <div className="divide-y divide-border">
