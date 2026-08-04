@@ -107,7 +107,7 @@ function Landing() {
               height={81}
               className="w-52 sm:w-64 lg:w-72"
               style={{
-                transform: "rotateX(55deg) rotateZ(-45deg)",
+                transform: "rotateX(10deg) rotateY(-26deg) rotateZ(-3deg)",
                 transformStyle: "preserve-3d",
               }}
             />
