@@ -1,4 +1,4 @@
-import { ArrowRight, Bot, ShieldHalf, Terminal, Ban, CheckCheck } from "lucide-react";
+import { Bot, ShieldHalf, Terminal, Ban, CheckCheck } from "lucide-react";
 
 const FLOW = [
   {
@@ -73,7 +73,6 @@ export function KeyExplainer() {
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
         <Ban className="mt-0.5 size-3.5 shrink-0 text-destructive" />
         No key, no decisions: without one your agent runs unguarded and nothing shows up in the audit trail.
-        <ArrowRight className="mt-0.5 size-3.5 shrink-0" />
       </p>
     </div>
   );
