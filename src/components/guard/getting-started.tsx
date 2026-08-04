@@ -53,7 +53,7 @@ export function GettingStarted() {
     },
     {
       title: "3. Connect your agent",
-      body: "Create a key and POST each action to the guard endpoint before your agent runs it.",
+      body: "A key lets your real agent ask Containment before it acts. Create one, then paste the ready-made cURL / TypeScript / Python snippet into your agent code.",
       done: hasKey,
       to: "/console",
       cta: "Create a key",

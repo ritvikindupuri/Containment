@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Copy, KeyRound, Play, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/guard/app-shell";
 import { GettingStarted } from "@/components/guard/getting-started";
+import { KeyExplainer } from "@/components/guard/key-explainer";
 import { PolicyTestRunner } from "@/components/guard/policy-test-runner";
 import { VerdictBadge, RiskMeter } from "@/components/guard/verdict-badge";
 import { createKey, evaluateFromConsole, listKeys, revokeKey } from "@/lib/guard.functions";
@@ -108,6 +109,7 @@ function ConsolePage() {
   const [primary, setPrimary] = useState(PRESETS[0]!.value);
   const [untrusted, setUntrusted] = useState("");
   const [result, setResult] = useState<GuardResult | null>(null);
+  const [lang, setLang] = useState<"curl" | "typescript" | "python">("curl");
 
   const evalMutation = useMutation({
     mutationFn: () => {
@@ -126,10 +128,43 @@ function ConsolePage() {
     onError: (error) => toast.error(error instanceof Error ? error.message : "Evaluation failed"),
   });
 
-  const curl = `curl -X POST ${typeof window !== "undefined" ? window.location.origin : ""}/api/public/v1/guard \\
-  -H "x-guard-key: ${freshKey ?? "agk_live_your_key"}" \\
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const keyValue = freshKey ?? "agk_live_your_key";
+  const snippets: Record<"curl" | "typescript" | "python", string> = {
+    curl: `curl -X POST ${origin}/api/public/v1/guard \\
+  -H "x-guard-key: ${keyValue}" \\
   -H "content-type: application/json" \\
-  -d '{"type":"shell","agent_id":"build-agent-7","command":"npm install lodash"}'`;
+  -d '{"type":"shell","agent_id":"build-agent-7","command":"npm install lodash"}'`,
+    typescript: `// Call this wherever your agent is about to act.
+async function guard(action: Record<string, unknown>) {
+  const res = await fetch("${origin}/api/public/v1/guard", {
+    method: "POST",
+    headers: { "x-guard-key": "${keyValue}", "content-type": "application/json" },
+    body: JSON.stringify({ agent_id: "build-agent-7", ...action }),
+  });
+  return res.json();
+}
+
+const decision = await guard({ type: "shell", command: "npm install lodash" });
+if (decision.verdict !== "allow") throw new Error(decision.summary); // blocked
+await runCommand("npm install lodash"); // only reached when allowed`,
+    python: `# Call this wherever your agent is about to act.
+import requests
+
+def guard(action):
+    res = requests.post(
+        "${origin}/api/public/v1/guard",
+        headers={"x-guard-key": "${keyValue}"},
+        json={"agent_id": "build-agent-7", **action},
+    )
+    return res.json()
+
+decision = guard({"type": "shell", "command": "npm install lodash"})
+if decision["verdict"] != "allow":
+    raise RuntimeError(decision["summary"])  # blocked
+run_command("npm install lodash")  # only reached when allowed`,
+  };
+  const curl = snippets[lang];
 
   return (
     <AppShell>
@@ -292,6 +327,7 @@ function ConsolePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <KeyExplainer />
             <form
               className="flex gap-2"
               onSubmit={(event) => {
@@ -365,7 +401,19 @@ function ConsolePage() {
 
             <div className="rounded-md border border-border bg-surface/50 p-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="label-mono">Call it from your agent</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="label-mono">Call it from your agent</p>
+                  {(["curl", "typescript", "python"] as const).map((option) => (
+                    <Button
+                      key={option}
+                      size="sm"
+                      variant={lang === option ? "secondary" : "ghost"}
+                      onClick={() => setLang(option)}
+                    >
+                      {option === "curl" ? "cURL" : option === "typescript" ? "TypeScript" : "Python"}
+                    </Button>
+                  ))}
+                </div>
                 <Button
                   size="sm"
                   variant="outline"
