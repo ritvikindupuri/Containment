@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { evaluateAction } from "@/lib/guard/engine";
 import { DEFAULT_POLICY, type GuardAction, type GuardPolicy } from "@/lib/guard/types";
-import { actionSchema, policyUpdateSchema } from "@/lib/guard/schemas";
+import { actionSchema, policyUpdateSchema, recommendedPolicySchema } from "@/lib/guard/schemas";
 
 type PolicyRow = {
   id: string;
