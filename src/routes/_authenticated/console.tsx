@@ -673,7 +673,9 @@ run_command("npm install lodash")  # only reached when allowed`,
               <Link to="/dashboard">See every decision in the audit trail</Link>
             </Button>
           </div>
-        </FlowStep>
+            </FlowStep>
+          </>
+        )}
       </div>
       </FlowGate>
     </AppShell>
