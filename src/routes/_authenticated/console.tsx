@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Copy, KeyRound, Play, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/guard/app-shell";
+import { GettingStarted } from "@/components/guard/getting-started";
 import { VerdictBadge, RiskMeter } from "@/components/guard/verdict-badge";
 import { createKey, evaluateFromConsole, listKeys, revokeKey } from "@/lib/guard.functions";
 import { Button } from "@/components/ui/button";
