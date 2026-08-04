@@ -110,6 +110,7 @@ function PolicyPage() {
   return (
     <AppShell>
       <FlowGate stage="policy">
+      <StageIntro stage="policy" />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <span className="label-mono">Policy</span>
