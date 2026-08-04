@@ -63,8 +63,8 @@ export function ContainmentStatus({ decisions }: { decisions: StatusDecision[] }
             {idle
               ? "Once your agents send actions here, this panel tells you at a glance whether anything got out of the sandbox."
               : breached
-                ? `${escaped.length} risky action${escaped.length === 1 ? "" : "s"} were flagged but allowed to run because the policy was in monitor mode. Switch the policy to enforce to stop them.`
-                : `${stopped.length} escape attempt${stopped.length === 1 ? "" : "s"} were blocked before they ran. Nothing left the sandbox.`}
+                ? `${escaped.length} risky action${escaped.length === 1 ? "" : "s"} ${escaped.length === 1 ? "was" : "were"} flagged but allowed to run because the policy was in monitor mode. Switch the policy to enforce to stop them.`
+                : `${stopped.length} escape attempt${stopped.length === 1 ? "" : "s"} ${stopped.length === 1 ? "was" : "were"} blocked before it ran. Nothing left the sandbox.`}
           </p>
 
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
