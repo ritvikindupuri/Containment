@@ -112,8 +112,11 @@ function DashboardPage() {
           ) : visible.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-sm text-muted-foreground">
-                No decisions yet. Send an action from the console or your agent runtime.
+                Nothing here yet. Run an action through the playground and it will appear within seconds.
               </p>
+              <Button asChild size="sm" className="mt-4">
+                <Link to="/console">Open the playground</Link>
+              </Button>
             </div>
           ) : (
             <div className="divide-y divide-border">
