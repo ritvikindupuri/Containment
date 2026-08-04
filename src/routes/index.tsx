@@ -99,23 +99,18 @@ function Landing() {
             </div>
           </div>
 
-          <div className="relative flex justify-center" style={{ perspective: "1000px" }}>
-            <div className="absolute inset-0 m-auto size-64 animate-aura rounded-full bg-primary/20 blur-3xl" />
-            <div
-              className="relative animate-iso-float drop-shadow-[0_30px_60px_rgba(0,0,0,0.5)]"
+          <div className="flex justify-center" style={{ perspective: "1200px" }}>
+            <img
+              src={logoAsset.url}
+              alt="Containment shield mark"
+              width={57}
+              height={81}
+              className="w-52 sm:w-64 lg:w-72"
               style={{
                 transform: "rotateX(55deg) rotateZ(-45deg)",
                 transformStyle: "preserve-3d",
               }}
-            >
-              <img
-                src={logoAsset.url}
-                alt="Containment shield mark"
-                width={57}
-                height={81}
-                className="relative w-44 sm:w-56 lg:w-64"
-              />
-            </div>
+            />
           </div>
         </div>
       </section>
