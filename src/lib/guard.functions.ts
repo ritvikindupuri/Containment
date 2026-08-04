@@ -425,3 +425,18 @@ export const resolveApproval = createServerFn({ method: "POST" })
     if (updated.error) throw new Error(updated.error.message);
     return updated.data as ApprovalRow;
   });
+
+/** One approval row, used by the live run when it pauses on a gated action. */
+export const getApproval = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => ({ id: String(input?.id ?? "") }))
+  .handler(async ({ data, context }): Promise<ApprovalRow> => {
+    const result = await context.supabase
+      .from("decisions")
+      .select(APPROVAL_COLUMNS)
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (result.error) throw new Error(result.error.message);
+    return result.data as ApprovalRow;
+  });
