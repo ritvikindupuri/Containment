@@ -87,18 +87,6 @@ export function useFlowProgress() {
       done: auditDone,
       lockedHint: "Complete one live run first — there is nothing to audit yet.",
     },
-    {
-      key: "policy",
-      step: 4,
-      label: "Policy",
-      to: "/policy",
-      title: "Tune the policy by hand",
-      body: "Once you have seen real verdicts, tighten thresholds, allowlists and enforcement. Every save is a new version.",
-      cta: "Open policy",
-      unlocked: runDone,
-      done: policyTuned,
-      lockedHint: "Complete one live run first — tune the policy against real verdicts, not guesses.",
-    },
   ];
 
   return {
