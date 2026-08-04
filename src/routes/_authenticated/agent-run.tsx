@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/guard/app-shell";
 import { GettingStarted } from "@/components/guard/getting-started";
+import { StageIntro } from "@/components/guard/stage-intro";
 import { AgentRun } from "@/components/guard/agent-run";
 import { FlowGate } from "@/components/guard/flow-gate";
 
@@ -30,6 +31,7 @@ function AgentRunPage() {
     <AppShell>
       <FlowGate stage="live_run">
       <GettingStarted />
+      <StageIntro stage="live_run" />
       <header className="mb-6">
         <h1 className="text-xl font-semibold tracking-tight">Live agent run</h1>
         <p className="mt-1 text-sm text-muted-foreground">

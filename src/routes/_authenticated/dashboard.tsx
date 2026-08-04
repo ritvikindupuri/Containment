@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ShieldAlert, ShieldCheck, ShieldQuestion, Inbox } from "lucide-react";
 import { AppShell } from "@/components/guard/app-shell";
 import { GettingStarted } from "@/components/guard/getting-started";
+import { StageIntro } from "@/components/guard/stage-intro";
 import { ContainmentStatus } from "@/components/guard/containment-status";
 import { ApprovalQueue } from "@/components/guard/approval-queue";
 import { FlowGate } from "@/components/guard/flow-gate";
@@ -74,6 +75,7 @@ function DashboardPage() {
     <AppShell>
       <FlowGate stage="audit">
       <GettingStarted />
+      <StageIntro stage="audit" />
       <ContainmentStatus decisions={rows} />
       <div className="mb-8 mt-8">
         <ApprovalQueue />

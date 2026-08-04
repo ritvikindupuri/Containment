@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useFlowProgress, type StageKey } from "@/lib/flow";
+import { WelcomeTour } from "@/components/guard/welcome-tour";
 
 const ICONS: Record<StageKey, typeof KeyRound> = {
   setup: KeyRound,
@@ -38,6 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
+      <WelcomeTour />
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-5">
           <Link to="/" className="flex items-center gap-2">

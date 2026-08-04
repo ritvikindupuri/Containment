@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   ChevronDown,
+  FileDown,
 } from "lucide-react";
 import { ingestRepo, type AgentRunPlan } from "@/lib/agent-run.functions";
 import { useRepoSession } from "@/lib/repo-session";
@@ -24,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { buildRunReport } from "@/lib/run-report";
+import { supabase } from "@/integrations/supabase/client";
 import type { ActionType, GuardResult } from "@/lib/guard/types";
 
 type StepResult = GuardResult & {
@@ -63,6 +66,8 @@ export function AgentRun() {
   const [open, setOpen] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
   const [awaiting, setAwaiting] = useState<{ index: number; row: ApprovalRow } | null>(null);
+  const [startedAt, setStartedAt] = useState<string | null>(null);
+  const [finishedAt, setFinishedAt] = useState<string | null>(null);
 
   const ingestMutation = useMutation({
     mutationFn: (value: string) => ingest({ data: { url: value } }),
@@ -84,6 +89,8 @@ export function AgentRun() {
     if (startIndex === 0) {
       setResults({});
       setOpen(null);
+      setStartedAt(new Date().toISOString());
+      setFinishedAt(null);
     }
     try {
       for (let index = startIndex; index < plan.steps.length; index += 1) {
@@ -104,6 +111,7 @@ export function AgentRun() {
         await new Promise((resolve) => setTimeout(resolve, 260));
       }
       queryClient.invalidateQueries({ queryKey: ["decisions"] });
+      setFinishedAt(new Date().toISOString());
       update({ live_run_done: true });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "The run stopped early");
@@ -116,6 +124,33 @@ export function AgentRun() {
   useEffect(() => {
     if (session?.plan && !plan) setPlan(session.plan);
   }, [session, plan]);
+
+  /** Renders the print-ready PDF in the browser and hands it to the user. */
+  async function downloadReport() {
+    if (!plan) return;
+    try {
+      const { data } = await supabase.auth.getUser();
+      const last = Object.values(results).at(-1);
+      const { blob, filename } = buildRunReport({
+        plan,
+        results,
+        policyVersion: last?.policy_version ?? session?.policy_version ?? null,
+        policyMode: last?.policy_mode ?? null,
+        operator: data.user?.email ?? "Containment workspace",
+        startedAt,
+        finishedAt: finishedAt ?? (running ? null : startedAt),
+      });
+      const href = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(href);
+      toast.success("Report downloaded — ready to print or hand in.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not build the report");
+    }
+  }
 
   const done = Object.values(results);
   const blocked = done.filter((r) => r.verdict === "deny").length;
@@ -229,6 +264,19 @@ export function AgentRun() {
                   {running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
                   {running ? "Agent is acting…" : done.length ? "Run again" : `Run ${plan.steps.length} actions`}
                 </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => void downloadReport()}
+                  disabled={done.length === 0 || running}
+                >
+                  <FileDown className="size-4" />
+                  Download PDF report
+                </Button>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  A dated, print-ready report: containment status, the four counters, the policy version that ruled,
+                  every action in a table and the rule-by-rule reasoning behind each verdict.
+                </p>
               </CardContent>
             </Card>
 
