@@ -2,12 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { Check, ArrowRight, X, Compass } from "lucide-react";
+import { Check, ArrowRight, Compass } from "lucide-react";
 import { getPolicy, listDecisions, listKeys } from "@/lib/guard.functions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const DISMISS_KEY = "containment.getting-started.dismissed";
 export const POLICY_SAVED_KEY = "containment.policy.saved";
 
 type Step = {
@@ -27,10 +26,8 @@ export function GettingStarted() {
   const decisions = useQuery({ queryKey: ["decisions"], queryFn: () => fetchDecisions() as Promise<unknown[]> });
   const policy = useQuery({ queryKey: ["policy"], queryFn: () => fetchPolicy() as Promise<{ id: string } | null> });
 
-  const [dismissed, setDismissed] = useState(true);
   const [policySaved, setPolicySaved] = useState(false);
   useEffect(() => {
-    setDismissed(window.localStorage.getItem(DISMISS_KEY) === "1");
     setPolicySaved(window.localStorage.getItem(POLICY_SAVED_KEY) === "1");
   }, []);
 
@@ -64,7 +61,7 @@ export function GettingStarted() {
   ];
 
   const complete = steps.every((step) => step.done);
-  if (loading || dismissed || complete) return null;
+  if (loading || complete) return null;
 
   const next = steps.find((step) => !step.done)!;
 
@@ -114,17 +111,6 @@ export function GettingStarted() {
             ))}
           </ol>
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          aria-label="Dismiss getting started"
-          onClick={() => {
-            window.localStorage.setItem(DISMISS_KEY, "1");
-            setDismissed(true);
-          }}
-        >
-          <X className="size-4" />
-        </Button>
       </div>
     </section>
   );
