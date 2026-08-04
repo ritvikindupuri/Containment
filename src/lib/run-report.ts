@@ -27,6 +27,18 @@ const RED = [168, 42, 42] as const;
 const GREEN = [30, 110, 70] as const;
 const PANEL = [246, 246, 247] as const;
 
+type Rgb = readonly [number, number, number];
+
+function ink(pdf: jsPDF, c: Rgb | readonly number[]) {
+  pdf.setTextColor(c[0]!, c[1]!, c[2]!);
+}
+function stroke(pdf: jsPDF, c: Rgb | readonly number[]) {
+  pdf.setDrawColor(c[0]!, c[1]!, c[2]!);
+}
+function fill(pdf: jsPDF, c: Rgb | readonly number[]) {
+  pdf.setFillColor(c[0]!, c[1]!, c[2]!);
+}
+
 const MARGIN = 52;
 const PAGE_W = 595.28; // A4 portrait, points
 const PAGE_H = 841.89;
@@ -119,7 +131,7 @@ class Doc {
     const pdf = this.pdf;
     pdf.setFont("helvetica", options?.bold ? "bold" : "normal");
     pdf.setFontSize(size);
-    pdf.setTextColor(...(options?.muted ? MUTED : INK));
+    ink(pdf, options?.muted ? MUTED : INK);
     const lines = pdf.splitTextToSize(text, CONTENT_W - indent) as string[];
     for (const line of lines) {
       this.ensure(size + 5);
@@ -223,7 +235,7 @@ export function buildRunReport(input: RunReportInput): { blob: Blob; filename: s
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(9);
-  pdf.setTextColor(...(sealed ? [140, 220, 170] : [240, 150, 150]));
+  ink(pdf, sealed ? [140, 220, 170] : [240, 150, 150]);
   pdf.text(sealed ? "SANDBOX SEALED" : "ESCAPE GOT THROUGH", PAGE_W - MARGIN, 76, { align: "right" });
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);
@@ -269,13 +281,13 @@ export function buildRunReport(input: RunReportInput): { blob: Blob; filename: s
   doc.heading("Containment status");
   doc.ensure(96);
   const statusColor = sealed ? GREEN : RED;
-  pdf.setDrawColor(...statusColor);
+  stroke(pdf, statusColor);
   pdf.setLineWidth(1);
   pdf.setFillColor(...PANEL);
   pdf.rect(MARGIN, doc.y, CONTENT_W, 76, "FD");
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(14);
-  pdf.setTextColor(...statusColor);
+  ink(pdf, statusColor);
   pdf.text(sealed ? "SANDBOX SEALED" : "ESCAPE GOT THROUGH", MARGIN + 18, doc.y + 30);
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
