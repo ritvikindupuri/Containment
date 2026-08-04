@@ -9,12 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-type AuthSearch = { redirect?: string };
+type AuthSearch = { redirect?: string | undefined };
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>): AuthSearch => ({
-    redirect: typeof search.redirect === "string" && search.redirect.startsWith("/") ? search.redirect : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): AuthSearch => {
+    const value = search["redirect"];
+    return { redirect: typeof value === "string" && value.startsWith("/") ? value : undefined };
+  },
+
   head: () => ({
     meta: [
       { title: "Sign in — Containment agent firewall" },
