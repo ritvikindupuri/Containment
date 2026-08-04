@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedConsoleRouteImport } from './routes/_authenticated/console'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedPolicyRouteImport } from './routes/_authenticated/policy'
 import { Route as ApiPublicV1GuardRouteImport } from './routes/api/public/v1/guard'
 
 const IndexRoute = IndexRouteImport.update({
@@ -40,6 +41,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPolicyRoute = AuthenticatedPolicyRouteImport.update({
+  id: '/policy',
+  path: '/policy',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiPublicV1GuardRoute = ApiPublicV1GuardRouteImport.update({
   id: '/api/public/v1/guard',
   path: '/api/public/v1/guard',
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/console': typeof AuthenticatedConsoleRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/policy': typeof AuthenticatedPolicyRoute
   '/api/public/v1/guard': typeof ApiPublicV1GuardRoute
 }
 export interface FileRoutesByTo {
@@ -58,6 +65,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/console': typeof AuthenticatedConsoleRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/policy': typeof AuthenticatedPolicyRoute
   '/api/public/v1/guard': typeof ApiPublicV1GuardRoute
 }
 export interface FileRoutesById {
@@ -67,13 +75,26 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/console': typeof AuthenticatedConsoleRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/policy': typeof AuthenticatedPolicyRoute
   '/api/public/v1/guard': typeof ApiPublicV1GuardRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/console' | '/dashboard' | '/api/public/v1/guard'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/console'
+    | '/dashboard'
+    | '/policy'
+    | '/api/public/v1/guard'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/console' | '/dashboard' | '/api/public/v1/guard'
+  to:
+    | '/'
+    | '/auth'
+    | '/console'
+    | '/dashboard'
+    | '/policy'
+    | '/api/public/v1/guard'
   id:
     | '__root__'
     | '/'
@@ -81,6 +102,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/console'
     | '/_authenticated/dashboard'
+    | '/_authenticated/policy'
     | '/api/public/v1/guard'
   fileRoutesById: FileRoutesById
 }
@@ -128,6 +150,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/policy': {
+      id: '/_authenticated/policy'
+      path: '/policy'
+      fullPath: '/policy'
+      preLoaderRoute: typeof AuthenticatedPolicyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/v1/guard': {
       id: '/api/public/v1/guard'
       path: '/api/public/v1/guard'
@@ -141,11 +170,13 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedConsoleRoute: typeof AuthenticatedConsoleRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedPolicyRoute: typeof AuthenticatedPolicyRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConsoleRoute: AuthenticatedConsoleRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedPolicyRoute: AuthenticatedPolicyRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
