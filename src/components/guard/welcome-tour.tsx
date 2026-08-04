@@ -18,11 +18,11 @@ const SLIDES = [
   },
   {
     title: "Step 1 — Setup, from a repository",
-    body: "You do not configure anything by hand. Paste a public GitHub repo and we read its real files, then write both the security policy for that project and the exact actions worth testing against it. Everything happens in Containment’s simulator first.",
+    body: "You do not configure anything by hand. Paste a public GitHub repo and we read its real files, then write both the security policy for that project and the exact actions worth testing against it. Everything happens in Containment’s demo mode first.",
     points: [
       "You approve the suggested policy in one click (or edit it later).",
       "You run a suggested test action and see the verdict immediately.",
-      "Only your real agent needs an agent key; the simulator does not.",
+      "Only your real agent needs an agent key; the demo run does not.",
     ],
   },
   {

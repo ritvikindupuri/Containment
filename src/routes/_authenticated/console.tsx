@@ -274,7 +274,7 @@ run_command("npm install lodash")  # only reached when allowed`,
       <div className="mt-8 max-w-4xl space-y-4">
         <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
           <p className="text-sm text-foreground">
-            <strong>Two phases, one goal.</strong> Steps 1–4 run Containment’s built-in simulator so you can see the guard
+            <strong>Two phases, one goal.</strong> Steps 1–4 run Containment’s built-in demo agent so you can see the guard
             work without touching your real agent. Step 5 is the production handoff: you create a key and paste the
             snippet into your actual agent so it asks Containment before every real action.
           </p>
@@ -555,7 +555,7 @@ run_command("npm install lodash")  # only reached when allowed`,
           title="Deploy: connect your real agent"
           summary="Create a key and drop the snippet into your actual agent so it asks Containment before every real action."
           locked={!runDone}
-          lockedHint="Finish the simulator live run first — then wire the same check into your own agent."
+          lockedHint="Finish the demo live run first — then wire the same check into your own agent."
           done={keysDone}
           active={runDone && !keysDone}
         >

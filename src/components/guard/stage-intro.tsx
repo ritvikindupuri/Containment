@@ -30,7 +30,7 @@ export const STAGE_INTRO: Record<StageKey | "policy", Intro> = {
       },
       {
         name: "Production handoff",
-        does: "After the simulator proves the policy works, you create one agent key and paste the ready-made cURL, TypeScript or Python snippet into your real agent. The simulator never needs a key.",
+        does: "After the demo run proves the policy works, you create one agent key and paste the ready-made cURL, TypeScript or Python snippet into your real agent. The demo run never needs a key.",
       },
     ],
   },
