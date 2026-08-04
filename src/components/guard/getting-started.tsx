@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export const POLICY_SAVED_KEY = "containment.policy.saved";
 
 /**
- * The permanent guided rail. Shows the four stages in order, what is unlocked,
+ * The permanent guided rail. Shows the three stages in order, what is unlocked,
  * and the single next thing to do. Cannot be dismissed until the flow is done.
  */
 export function GettingStarted() {

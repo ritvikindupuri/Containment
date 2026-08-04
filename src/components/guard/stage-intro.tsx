@@ -62,7 +62,7 @@ export const STAGE_INTRO: Record<StageKey | "policy", Intro> = {
     what: "The permanent record. Every decision Containment has ever made for your workspace — from the playground, from live runs and from your real agent through the API.",
     do_here:
       "Clear the approval queue: each held action gets an AI security review, then you release or hold it. Expand any log row to see the rules behind its verdict.",
-    next: "Once the queue is clear, step 4 (Policy) unlocks so you can tighten the rules using what you just learned.",
+    next: "Once the queue is clear you are fully set up. The agent already wrote and versioned your policy — you can fine-tune it by hand from the link on this page if you ever need to.",
     parts: [
       {
         name: "Containment status",

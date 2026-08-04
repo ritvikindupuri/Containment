@@ -46,7 +46,7 @@ const SLIDES = [
 ];
 
 /**
- * First-run walkthrough. Explains the product and all four stages before the
+ * First-run walkthrough. Explains the product and all three stages before the
  * user touches anything. Cannot be dismissed — only completed.
  */
 export function WelcomeTour() {
