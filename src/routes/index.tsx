@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  ShieldHalf,
   TerminalSquare,
   FolderLock,
   Network,
@@ -9,10 +8,11 @@ import {
   GitBranch,
   ScrollText,
   PlugZap,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LiveDiagram } from "@/components/landing/live-diagram";
-import isoLogo from "@/assets/containment-iso.png";
+import logoAsset from "@/assets/containment-logo.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -44,7 +44,7 @@ const VECTORS = [
 
 const STEPS = [
   { icon: GitBranch, title: "Point it at a repo", body: "Containment reads the code and drafts the policy." },
-  { icon: ShieldHalf, title: "Watch a live run", body: "A real agent run, every action judged as it happens." },
+  { icon: Shield, title: "Watch a live run", body: "A real agent run, every action judged as it happens." },
   { icon: ScrollText, title: "Review the trail", body: "Every verdict, rule and policy version, exportable as PDF." },
   { icon: PlugZap, title: "Connect production", body: "One HTTP call in front of your real agent's tools." },
 ];
@@ -55,7 +55,13 @@ function Landing() {
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center px-5">
           <div className="flex items-center gap-2">
-            <ShieldHalf className="size-5 text-primary" />
+            <img
+              src={logoAsset.url}
+              alt="Containment"
+              width={28}
+              height={40}
+              className="size-7 object-contain"
+            />
             <span className="font-semibold tracking-tight">Containment</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -93,15 +99,27 @@ function Landing() {
             </div>
           </div>
 
-          <div className="relative flex justify-center">
+          <div className="relative flex justify-center" style={{ perspective: "1000px" }}>
             <div className="absolute inset-0 m-auto size-64 animate-aura rounded-full bg-primary/20 blur-3xl" />
-            <img
-              src={isoLogo}
-              alt="Containment isometric vault mark"
-              width={1024}
-              height={1024}
-              className="relative w-[280px] animate-iso-float drop-shadow-2xl sm:w-[360px] lg:w-[420px]"
-            />
+            <div
+              className="relative animate-iso-float"
+              style={{
+                transform: "rotateX(55deg) rotateZ(-45deg)",
+                transformStyle: "preserve-3d",
+              }}
+            >
+              <div className="absolute -inset-10 rounded-[2rem] bg-gradient-to-br from-primary/25 via-primary/8 to-transparent blur-2xl" />
+              <div className="relative flex items-center justify-center rounded-3xl border border-primary/20 bg-card/80 p-10 shadow-2xl backdrop-blur-sm sm:p-12">
+                <div className="absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_50%_45%,var(--primary)/15%,transparent_60%)]" />
+                <img
+                  src={logoAsset.url}
+                  alt="Containment isometric vault mark"
+                  width={57}
+                  height={81}
+                  className="relative z-10 w-28 drop-shadow-[0_12px_30px_rgba(0,0,0,0.4)] sm:w-36"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -170,7 +188,13 @@ function Landing() {
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-5 py-10 text-sm text-muted-foreground">
           <div className="flex items-center gap-2 text-foreground">
-            <ShieldHalf className="size-4 text-primary" />
+            <img
+              src={logoAsset.url}
+              alt="Containment"
+              width={20}
+              height={28}
+              className="size-5 object-contain"
+            />
             Containment
           </div>
           <p>Action-level containment for autonomous agents.</p>
