@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/guard/app-shell";
 import { POLICY_SAVED_KEY } from "@/components/guard/getting-started";
-import { getPolicy, updatePolicy } from "@/lib/guard.functions";
+import { getPolicy, listPolicyVersions, updatePolicy, type PolicyVersionRow } from "@/lib/guard.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/policy")({
 type PolicyRow = {
   id: string;
   name: string;
+  version: number;
   mode: "enforce" | "monitor";
   block_shell: boolean;
   block_filesystem: boolean;
@@ -53,6 +54,13 @@ function PolicyPage() {
   const save = useServerFn(updatePolicy);
   const { data, isLoading } = useQuery({ queryKey: ["policy"], queryFn: () => fetchPolicy() as Promise<PolicyRow> });
 
+  const fetchVersions = useServerFn(listPolicyVersions);
+  const versions = useQuery({
+    queryKey: ["policy-versions"],
+    queryFn: () => fetchVersions() as Promise<PolicyVersionRow[]>,
+  });
+
+  const [note, setNote] = useState("");
   const [form, setForm] = useState<PolicyRow | null>(null);
   useEffect(() => {
     if (data) setForm(data);
@@ -74,12 +82,15 @@ function PolicyPage() {
           approval_required_tools: payload.approval_required_tools,
           deny_threshold: payload.deny_threshold,
           approval_threshold: payload.approval_threshold,
+          ...(note.trim() ? { note: note.trim() } : {}),
         },
       }),
-    onSuccess: () => {
+    onSuccess: (saved) => {
       window.localStorage.setItem(POLICY_SAVED_KEY, "1");
+      setNote("");
       queryClient.invalidateQueries({ queryKey: ["policy"] });
-      toast.success("Policy saved — new decisions use it immediately.");
+      queryClient.invalidateQueries({ queryKey: ["policy-versions"] });
+      toast.success(`Saved as version ${(saved as PolicyRow).version} — new decisions record this version.`);
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not save policy"),
   });
@@ -100,11 +111,27 @@ function PolicyPage() {
         <div>
           <span className="label-mono">Policy</span>
           <h1 className="mt-2 text-3xl font-semibold">Guard rules</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Applies to every key and every request in this workspace.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Applies to every key and every request in this workspace. Currently on{" "}
+            <span className="font-mono">version {form.version}</span> — saving creates a new version and every decision
+            records the version that ruled it.
+          </p>
         </div>
-        <Button onClick={() => mutation.mutate(form)} disabled={mutation.isPending}>
-          Save policy
-        </Button>
+        <div className="flex w-full max-w-md items-end gap-2">
+          <div className="min-w-0 flex-1 space-y-2">
+            <Label htmlFor="note">What changed? (optional)</Label>
+            <Input
+              id="note"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Allow registry.internal for build agents"
+              maxLength={300}
+            />
+          </div>
+          <Button onClick={() => mutation.mutate(form)} disabled={mutation.isPending}>
+            Save as v{form.version + 1}
+          </Button>
+        </div>
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
@@ -206,6 +233,60 @@ function PolicyPage() {
           </Card>
         </div>
       </div>
+
+      <Card className="mt-6 border-border bg-card">
+        <CardHeader>
+          <CardTitle className="text-base">Version history</CardTitle>
+          <CardDescription>
+            Every save snapshots the full rule set. Audit entries reference these version numbers, so you can always tell
+            which rules produced a verdict.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {versions.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading history…</p>
+          ) : (versions.data ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No versions recorded yet.</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {(versions.data ?? []).map((entry) => (
+                <details key={entry.id} className="py-3">
+                  <summary className="flex cursor-pointer flex-wrap items-center gap-3 text-sm">
+                    <span className="label-mono text-primary">v{entry.version}</span>
+                    <span className="font-medium">{entry.note ?? "Policy updated"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(entry.created_at).toLocaleString()}
+                    </span>
+                    {entry.version === form.version ? (
+                      <span className="label-mono text-success">in force</span>
+                    ) : null}
+                  </summary>
+                  <div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                    <p>Mode: {entry.snapshot.mode}</p>
+                    <p>
+                      Thresholds: deny {entry.snapshot.deny_threshold} · approval {entry.snapshot.approval_threshold}
+                    </p>
+                    <p>
+                      Vectors blocked:{" "}
+                      {[
+                        entry.snapshot.block_shell ? "shell" : null,
+                        entry.snapshot.block_filesystem ? "filesystem" : null,
+                        entry.snapshot.block_network ? "network" : null,
+                        entry.snapshot.block_injection ? "injection" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "none"}
+                    </p>
+                    <p>Allowed hosts: {entry.snapshot.allowed_hosts.join(", ") || "all public hosts"}</p>
+                    <p>Writable roots: {entry.snapshot.allowed_write_paths.join(", ") || "none"}</p>
+                    <p>Approval-gated tools: {entry.snapshot.approval_required_tools.join(", ") || "none"}</p>
+                  </div>
+                </details>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </AppShell>
   );
 }
