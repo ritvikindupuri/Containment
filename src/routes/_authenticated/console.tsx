@@ -424,7 +424,7 @@ run_command("npm install lodash")  # only reached when allowed`,
         <FlowStep
           index={3}
           title="Try the suggested actions"
-          summary="Actions this agent would plausibly take on this repo, including the injected text that provokes them. Press Run — no typing."
+          summary="Real actions derived from your repo's own files and dependencies, each with the untrusted text that triggers it. Press Run — every verdict comes from the live guard engine and is recorded in the audit trail."
           locked={!policyDone}
           lockedHint="Approve a policy first — there is nothing to judge these actions against yet."
           done={examplesDone}
