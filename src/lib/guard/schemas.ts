@@ -30,3 +30,7 @@ export const policyUpdateSchema = z.object({
   deny_threshold: z.number().int().min(1).max(100),
   approval_threshold: z.number().int().min(1).max(100),
 });
+
+export const recommendedPolicySchema = policyUpdateSchema
+  .omit({ id: true, name: true })
+  .extend({ note: z.string().max(300).optional() });

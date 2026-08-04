@@ -1,8 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { PlannedStep, RepoContext } from "@/lib/agent-run.server";
+import type { PlannedStep, PolicySuggestion, RepoContext } from "@/lib/agent-run.server";
 
-export type AgentRunPlan = { repo: RepoContext; steps: PlannedStep[] };
+export type AgentRunPlan = {
+  repo: RepoContext;
+  steps: PlannedStep[];
+  examples: PlannedStep[];
+  policy: PolicySuggestion;
+};
 
 export const ingestRepo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -10,6 +15,6 @@ export const ingestRepo = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<AgentRunPlan> => {
     const { fetchRepoContext, planAgentRun } = await import("@/lib/agent-run.server");
     const { context, excerpts } = await fetchRepoContext(data.url);
-    const steps = await planAgentRun(context, excerpts);
-    return { repo: context, steps };
+    const plan = await planAgentRun(context, excerpts);
+    return { repo: context, ...plan };
   });

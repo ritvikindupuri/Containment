@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Check, ArrowRight, Compass } from "lucide-react";
 import { getPolicy, listDecisions, listKeys } from "@/lib/guard.functions";
 import { Button } from "@/components/ui/button";
+import { useRepoSession } from "@/lib/repo-session";
 import { cn } from "@/lib/utils";
 
 export const POLICY_SAVED_KEY = "containment.policy.saved";
@@ -29,6 +30,7 @@ export function GettingStarted() {
   });
   const policy = useQuery({ queryKey: ["policy"], queryFn: () => fetchPolicy() as Promise<{ id: string } | null> });
 
+  const { session } = useRepoSession();
   const [policySaved, setPolicySaved] = useState(false);
   useEffect(() => {
     setPolicySaved(window.localStorage.getItem(POLICY_SAVED_KEY) === "1");
@@ -44,29 +46,36 @@ export function GettingStarted() {
 
   const steps: Step[] = [
     {
-      title: "1. Set your policy",
-      body: "Choose which escape vectors to block, monitor vs. enforce, and your allowlists.",
-      done: policySaved && hasPolicy,
-      to: "/policy",
-      cta: "Open policy",
+      title: "1. Ingest a repository",
+      body: "Paste any public GitHub repo in the console. We read it and suggest your policy, the actions worth testing and the untrusted text to test them with.",
+      done: Boolean(session),
+      to: "/console",
+      cta: "Open console",
     },
     {
-      title: "2. Watch a real agent get guarded",
-      body: "Paste any public GitHub repo. An AI agent plans the exact commands it would run on it, then Containment rules on each one live — allowed, gated or blocked.",
-      done: hasAgentRun,
-      to: "/agent-run",
-      cta: "Run an agent",
+      title: "2. Approve the suggested policy",
+      body: "One click applies the policy written for that repo as a new version. You can still edit it by hand.",
+      done: Boolean(session?.policy_approved) || (policySaved && hasPolicy),
+      to: "/console",
+      cta: "Approve policy",
     },
     {
-      title: "3. Try your own action in the playground",
-      body: "Paste a command, path or URL your agent might run and see the verdict instantly.",
+      title: "3. Run the suggested actions",
+      body: "Press Run on the AI-suggested actions and watch the verdict, risk score and rules that fired.",
       done: hasDecision,
       to: "/console",
-      cta: "Open playground",
+      cta: "Run an action",
     },
     {
-      title: "4. Connect your own agent",
-      body: "A key lets your real agent ask Containment before it acts. Create one, then paste the ready-made cURL / TypeScript / Python snippet into your agent code.",
+      title: "4. Watch the full agent run",
+      body: "The agent executes its whole plan for that repo, one action at a time, and you see what gets stopped.",
+      done: hasAgentRun,
+      to: "/agent-run",
+      cta: "Open live run",
+    },
+    {
+      title: "5. Connect your own agent",
+      body: "Create a key and paste the ready-made cURL / TypeScript / Python snippet into your agent code.",
       done: hasKey,
       to: "/console",
       cta: "Create a key",
@@ -83,7 +92,8 @@ export function GettingStarted() {
       <div className="flex items-start gap-3">
         <Compass className="mt-0.5 size-5 shrink-0 text-primary" />
         <div className="min-w-0 flex-1">
-          <h2 className="text-base font-semibold">Start here — four steps to a guarded agent</h2>
+          <h2 className="text-base font-semibold">Start here — each step unlocks the next</h2>
+
           <p className="mt-1 text-sm text-muted-foreground">
             Containment checks every action your AI agent wants to take and returns allow, needs approval or deny.
           </p>
