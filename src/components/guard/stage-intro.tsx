@@ -9,7 +9,7 @@ type Intro = {
 };
 
 /** Plain-English explanation of every page and every component on it. */
-export const STAGE_INTRO: Record<StageKey, Intro> = {
+export const STAGE_INTRO: Record<StageKey | "policy", Intro> = {
   setup: {
     what: "This is where Containment learns about the code your AI agent will work on. You give it a public GitHub repository; it reads the real files and works out what safe behaviour looks like for that project.",
     do_here:
@@ -104,7 +104,7 @@ export const STAGE_INTRO: Record<StageKey, Intro> = {
   },
 };
 
-export function StageIntro({ stage }: { stage: StageKey }) {
+export function StageIntro({ stage }: { stage: StageKey | "policy" }) {
   const intro = STAGE_INTRO[stage];
   return (
     <section className="mb-8 rounded-lg border border-border bg-card p-5">

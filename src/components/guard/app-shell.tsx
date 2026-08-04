@@ -4,7 +4,7 @@ import {
   ShieldHalf,
   LayoutDashboard,
   KeyRound,
-  SlidersHorizontal,
+
   LogOut,
   PlayCircle,
   Lock,
