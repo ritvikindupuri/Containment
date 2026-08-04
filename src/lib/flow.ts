@@ -47,7 +47,7 @@ export function useFlowProgress() {
   const setupDone = repoDone && policyDone && examplesDone;
   const runDone = setupDone && Boolean(session?.live_run_done);
   const auditDone = runDone && (pendingApprovals === 0 || resolvedApprovals > 0);
-  const policyTuned = runDone && Boolean(session?.policy_version);
+  
 
 
   const stages: Stage[] = [
