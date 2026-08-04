@@ -93,6 +93,7 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           enforced: result.enforced,
           reasons: JSON.parse(JSON.stringify(result.findings)),
           action: JSON.parse(JSON.stringify(parsed)),
+          approval_state: result.verdict === "needs_approval" ? "pending" : "not_required",
         });
 
         await supabaseAdmin
