@@ -128,7 +128,7 @@ export const updatePolicy = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => policyUpdateSchema.parse(input))
   .handler(async ({ data, context }): Promise<PolicyRow> => {
-    const { id, note, ...patch } = data;
+    const { id, note, name, ...patch } = data;
     const current = await context.supabase
       .from("policies")
       .select("version")
@@ -140,7 +140,8 @@ export const updatePolicy = createServerFn({ method: "POST" })
     const nextVersion = Number(current.data.version ?? 1) + 1;
     const result = await context.supabase
       .from("policies")
-      .update({ ...patch, version: nextVersion })
+      .update({ ...patch, ...(name ? { name } : {}), version: nextVersion })
+
       .eq("id", id)
       .eq("user_id", context.userId)
       .select("*")
