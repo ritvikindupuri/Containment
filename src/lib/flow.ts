@@ -3,14 +3,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { listDecisions } from "@/lib/guard.functions";
 import { useRepoSession } from "@/lib/repo-session";
 
-/** The four stages of the app, in the order a company actually rolls this out. */
-export type StageKey = "setup" | "live_run" | "audit" | "policy";
+/** The three stages of the app, in the order a company actually rolls this out. */
+export type StageKey = "setup" | "live_run" | "audit";
 
 export type Stage = {
   key: StageKey;
   step: number;
   label: string;
-  to: "/console" | "/agent-run" | "/dashboard" | "/policy";
+  to: "/console" | "/agent-run" | "/dashboard";
   title: string;
   body: string;
   cta: string;
