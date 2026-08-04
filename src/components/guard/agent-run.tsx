@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import { ingestRepo, type AgentRunPlan } from "@/lib/agent-run.functions";
 import { useRepoSession } from "@/lib/repo-session";
-import { evaluateAgentStep } from "@/lib/guard.functions";
+import { evaluateAgentStep, getApproval, type ApprovalRow } from "@/lib/guard.functions";
+import { ApprovalCard } from "@/components/guard/approval-card";
 import { VerdictBadge, RiskMeter } from "@/components/guard/verdict-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { cn } from "@/lib/utils";
 import type { ActionType, GuardResult } from "@/lib/guard/types";
 
-type StepResult = GuardResult & { policy_version: number; policy_mode: "enforce" | "monitor" };
+type StepResult = GuardResult & {
+  decision_id: string;
+  policy_version: number;
+  policy_mode: "enforce" | "monitor";
+};
 
 const TYPE_META: Record<ActionType, { icon: typeof Terminal; label: string }> = {
   shell: { icon: Terminal, label: "shell command" },
@@ -48,6 +53,7 @@ export function AgentRun() {
   const queryClient = useQueryClient();
   const ingest = useServerFn(ingestRepo);
   const evaluate = useServerFn(evaluateAgentStep);
+  const loadApproval = useServerFn(getApproval);
 
   const { session, start, update } = useRepoSession();
   const [url, setUrl] = useState("");
@@ -56,6 +62,7 @@ export function AgentRun() {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [open, setOpen] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
+  const [awaiting, setAwaiting] = useState<{ index: number; row: ApprovalRow } | null>(null);
 
   const ingestMutation = useMutation({
     mutationFn: (value: string) => ingest({ data: { url: value } }),
@@ -70,17 +77,30 @@ export function AgentRun() {
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not read that repository"),
   });
 
-  async function runAll() {
+  async function runFrom(startIndex: number) {
     if (!plan || running) return;
     setRunning(true);
-    setResults({});
-    setOpen(null);
+    setAwaiting(null);
+    if (startIndex === 0) {
+      setResults({});
+      setOpen(null);
+    }
     try {
-      for (let index = 0; index < plan.steps.length; index += 1) {
+      for (let index = startIndex; index < plan.steps.length; index += 1) {
         setActiveIndex(index);
         const step = plan.steps[index]!;
         const value = (await evaluate({ data: step.action })) as StepResult;
         setResults((prev) => ({ ...prev, [index]: value }));
+        queryClient.invalidateQueries({ queryKey: ["decisions"] });
+
+        if (value.verdict === "needs_approval" && value.decision_id) {
+          // The policy will not decide this one alone: hold the run until a human does.
+          const row = (await loadApproval({ data: { id: value.decision_id } })) as ApprovalRow;
+          setAwaiting({ index, row });
+          queryClient.invalidateQueries({ queryKey: ["approvals"] });
+          toast.warning("The agent is paused — this action needs your approval.");
+          return;
+        }
         await new Promise((resolve) => setTimeout(resolve, 260));
       }
       queryClient.invalidateQueries({ queryKey: ["decisions"] });
@@ -205,7 +225,7 @@ export function AgentRun() {
                   </p>
                   <p className="mt-1">Read: {plan.repo.scanned_files.join(", ") || "no setup files"}</p>
                 </div>
-                <Button className="w-full" onClick={runAll} disabled={running}>
+                <Button className="w-full" onClick={() => void runFrom(0)} disabled={running}>
                   {running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
                   {running ? "Agent is acting…" : done.length ? "Run again" : `Run ${plan.steps.length} actions`}
                 </Button>
@@ -213,6 +233,28 @@ export function AgentRun() {
             </Card>
 
             <div className="space-y-2">
+              {awaiting ? (
+                <div className="rounded-lg border border-warning/60 bg-warning/5 p-4">
+                  <p className="text-sm font-medium">
+                    Agent paused at step {awaiting.index + 1} — it needs a human before it can continue
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Release it and the agent carries on from the next action. Hold it and the run stops here. Either way
+                    the choice is recorded in the audit trail.
+                  </p>
+                  <div className="mt-3">
+                    <ApprovalCard
+                      row={awaiting.row}
+                      onResolved={(next) => {
+                        const from = awaiting.index + 1;
+                        setAwaiting(null);
+                        if (next.approval_state === "approved") void runFrom(from);
+                        else toast.info("Run held — the agent never took that action.");
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : null}
               {plan.steps.map((step, index) => {
                 const meta = TYPE_META[step.action.type];
                 const result = results[index];
