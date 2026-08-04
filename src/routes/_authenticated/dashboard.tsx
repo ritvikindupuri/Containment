@@ -85,7 +85,12 @@ function DashboardPage() {
           <span className="label-mono">Audit trail</span>
           <h1 className="mt-2 text-3xl font-semibold">Guarded actions</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Last 200 decisions across every key in this workspace, newest first.
+            Last 200 decisions across every key in this workspace, newest first. The agent already wrote and versioned
+            your rules —{" "}
+            <Link to="/policy" className="text-primary underline-offset-2 hover:underline">
+              fine-tune the policy by hand
+            </Link>{" "}
+            only if you need to.
           </p>
         </div>
         <div className="flex gap-1 rounded-md border border-border p-1">
