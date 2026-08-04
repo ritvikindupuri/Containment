@@ -9,6 +9,7 @@ import {
   ScrollText,
   PlugZap,
   Shield,
+  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LiveDiagram } from "@/components/landing/live-diagram";
@@ -100,17 +101,42 @@ function Landing() {
           </div>
 
           <div className="flex justify-center" style={{ perspective: "1200px" }}>
-            <img
-              src={logoAsset.url}
-              alt="Containment shield mark"
-              width={57}
-              height={81}
-              className="w-52 sm:w-64 lg:w-72"
-              style={{
-                transform: "rotateX(10deg) rotateY(-26deg) rotateZ(-3deg)",
-                transformStyle: "preserve-3d",
-              }}
-            />
+            <div className="relative">
+              <img
+                src={logoAsset.url}
+                alt="Containment shield mark"
+                width={57}
+                height={81}
+                className="w-52 sm:w-64 lg:w-72"
+                style={{
+                  transform: "rotateX(55deg) rotateZ(-45deg)",
+                  transformStyle: "preserve-3d",
+                }}
+              />
+
+              {/* AI agent breaking out of the shield */}
+              <svg
+                aria-hidden
+                className="pointer-events-none absolute -right-6 -top-2 size-28 text-destructive sm:size-32"
+                viewBox="0 0 100 100"
+                fill="none"
+              >
+                <path
+                  d="M8 88 C 30 78, 52 58, 74 26"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeDasharray="5 6"
+                  strokeLinecap="round"
+                  opacity="0.6"
+                />
+              </svg>
+              <div className="absolute -right-8 -top-6 flex size-11 items-center justify-center rounded-xl border border-destructive/50 bg-card text-destructive shadow-lg sm:size-12">
+                <Bot className="size-6" />
+              </div>
+              <span className="absolute -right-4 top-7 rounded-md border border-destructive/40 bg-card/90 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-destructive">
+                escape attempt
+              </span>
+            </div>
           </div>
         </div>
       </section>
