@@ -17,6 +17,8 @@ export type ActionInput = z.infer<typeof actionSchema>;
 
 export const policyUpdateSchema = z.object({
   id: z.string().uuid(),
+  name: z.string().min(1).max(120).optional(),
+  note: z.string().max(300).optional(),
   mode: z.enum(["enforce", "monitor"]),
   block_shell: z.boolean(),
   block_filesystem: z.boolean(),

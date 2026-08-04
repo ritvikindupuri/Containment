@@ -20,12 +20,26 @@ type PolicyRow = {
   approval_threshold: number;
 };
 
+export type PolicySnapshot = {
+  name: string;
+  mode: "enforce" | "monitor";
+  block_shell: boolean;
+  block_filesystem: boolean;
+  block_network: boolean;
+  block_injection: boolean;
+  allowed_hosts: string[];
+  allowed_write_paths: string[];
+  approval_required_tools: string[];
+  deny_threshold: number;
+  approval_threshold: number;
+};
+
 export type PolicyVersionRow = {
   id: string;
   version: number;
   note: string | null;
   created_at: string;
-  snapshot: Record<string, unknown>;
+  snapshot: PolicySnapshot;
 };
 
 function toPolicy(row: PolicyRow): GuardPolicy {
