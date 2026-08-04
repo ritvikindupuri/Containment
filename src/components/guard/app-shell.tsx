@@ -22,7 +22,6 @@ const ICONS: Record<StageKey, typeof KeyRound> = {
   setup: KeyRound,
   live_run: PlayCircle,
   audit: LayoutDashboard,
-  policy: SlidersHorizontal,
 };
 
 export function AppShell({ children }: { children: ReactNode }) {
