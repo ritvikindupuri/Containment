@@ -9,6 +9,7 @@ import {
   ScrollText,
   PlugZap,
   Shield,
+  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LiveDiagram } from "@/components/landing/live-diagram";
