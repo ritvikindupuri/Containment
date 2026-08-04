@@ -18,6 +18,7 @@ import { AppShell } from "@/components/guard/app-shell";
 import { FlowStep } from "@/components/guard/flow-step";
 import { FlowGate } from "@/components/guard/flow-gate";
 import { GettingStarted } from "@/components/guard/getting-started";
+import { StageIntro } from "@/components/guard/stage-intro";
 import { KeyExplainer } from "@/components/guard/key-explainer";
 import { PolicyTestRunner } from "@/components/guard/policy-test-runner";
 import { VerdictBadge, RiskMeter } from "@/components/guard/verdict-badge";
@@ -262,6 +263,7 @@ run_command("npm install lodash")  # only reached when allowed`,
     <AppShell>
       <FlowGate stage="setup">
       <GettingStarted />
+      <StageIntro stage="setup" />
       <span className="label-mono">Console</span>
       <h1 className="mt-2 text-3xl font-semibold">Guided setup</h1>
       <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
