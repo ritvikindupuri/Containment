@@ -6,6 +6,8 @@ import { ShieldAlert, ShieldCheck, ShieldQuestion, Inbox } from "lucide-react";
 import { AppShell } from "@/components/guard/app-shell";
 import { GettingStarted } from "@/components/guard/getting-started";
 import { ContainmentStatus } from "@/components/guard/containment-status";
+import { ApprovalQueue } from "@/components/guard/approval-queue";
+import { FlowGate } from "@/components/guard/flow-gate";
 import { VerdictBadge, RiskMeter } from "@/components/guard/verdict-badge";
 import { listDecisions } from "@/lib/guard.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,8 +72,12 @@ function DashboardPage() {
 
   return (
     <AppShell>
-      <ContainmentStatus decisions={rows} />
+      <FlowGate stage="audit">
       <GettingStarted />
+      <ContainmentStatus decisions={rows} />
+      <div className="mb-8 mt-8">
+        <ApprovalQueue />
+      </div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <span className="label-mono">Audit trail</span>
@@ -174,6 +180,7 @@ function DashboardPage() {
           )}
         </CardContent>
       </Card>
+      </FlowGate>
     </AppShell>
   );
 }
