@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ShieldAlert, ShieldCheck, ShieldQuestion, Inbox } from "lucide-react";
 import { AppShell } from "@/components/guard/app-shell";
 import { GettingStarted } from "@/components/guard/getting-started";
+import { ContainmentStatus } from "@/components/guard/containment-status";
 import { VerdictBadge, RiskMeter } from "@/components/guard/verdict-badge";
 import { listDecisions } from "@/lib/guard.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,6 +70,7 @@ function DashboardPage() {
 
   return (
     <AppShell>
+      <ContainmentStatus decisions={rows} />
       <GettingStarted />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
