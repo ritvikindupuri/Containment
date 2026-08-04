@@ -99,21 +99,25 @@ function Landing() {
             </div>
           </div>
 
-          <div className="relative flex justify-center">
+          <div className="relative flex justify-center" style={{ perspective: "1000px" }}>
             <div className="absolute inset-0 m-auto size-64 animate-aura rounded-full bg-primary/20 blur-3xl" />
-            <div className="relative animate-iso-float">
-              <div className="absolute -inset-8 rounded-3xl bg-gradient-to-br from-primary/20 via-primary/5 to-transparent blur-2xl" />
-              <img
-                src={logoAsset.url}
-                alt="Containment isometric vault mark"
-                width={57}
-                height={81}
-                className="relative w-[200px] drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] sm:w-[260px] lg:w-[300px]"
-                style={{
-                  transform: "rotateX(55deg) rotateZ(-45deg)",
-                  transformStyle: "preserve-3d",
-                }}
-              />
+            <div
+              className="relative animate-iso-float"
+              style={{
+                transform: "rotateX(55deg) rotateZ(-45deg)",
+                transformStyle: "preserve-3d",
+              }}
+            >
+              <div className="absolute -inset-10 rounded-[2rem] bg-gradient-to-br from-primary/25 via-primary/8 to-transparent blur-2xl" />
+              <div className="relative flex items-center justify-center rounded-3xl border border-primary/20 bg-card/80 p-10 shadow-2xl backdrop-blur-sm sm:p-12">
+                <img
+                  src={logoAsset.url}
+                  alt="Containment isometric vault mark"
+                  width={57}
+                  height={81}
+                  className="relative w-28 drop-shadow-[0_12px_30px_rgba(0,0,0,0.4)] sm:w-36"
+                />
+              </div>
             </div>
           </div>
         </div>
