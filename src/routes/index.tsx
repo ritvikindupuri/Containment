@@ -44,7 +44,7 @@ const VECTORS = [
 
 const STEPS = [
   { icon: GitBranch, title: "Point it at a repo", body: "Containment reads the code and drafts the policy." },
-  { icon: ShieldHalf, title: "Watch a live run", body: "A real agent run, every action judged as it happens." },
+  { icon: Shield, title: "Watch a live run", body: "A real agent run, every action judged as it happens." },
   { icon: ScrollText, title: "Review the trail", body: "Every verdict, rule and policy version, exportable as PDF." },
   { icon: PlugZap, title: "Connect production", body: "One HTTP call in front of your real agent's tools." },
 ];
