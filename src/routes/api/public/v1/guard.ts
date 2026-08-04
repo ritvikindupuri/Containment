@@ -83,6 +83,7 @@ export const Route = createFileRoute("/api/public/v1/guard")({
         await supabaseAdmin.from("decisions").insert({
           user_id: keyRow.data.user_id,
           policy_id: row.id,
+          policy_version: row.version,
           api_key_id: keyRow.data.id,
           agent_id: parsed.agent_id ?? null,
           source: "api",
@@ -107,6 +108,7 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           action_type: result.action_type,
           summary: result.summary,
           findings: result.findings,
+          policy_version: row.version,
         });
       },
     },

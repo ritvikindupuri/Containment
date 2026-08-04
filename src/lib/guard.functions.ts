@@ -7,6 +7,7 @@ import { actionSchema, policyUpdateSchema } from "@/lib/guard/schemas";
 type PolicyRow = {
   id: string;
   name: string;
+  version: number;
   mode: "enforce" | "monitor";
   block_shell: boolean;
   block_filesystem: boolean;
@@ -19,50 +20,142 @@ type PolicyRow = {
   approval_threshold: number;
 };
 
+export type PolicySnapshot = {
+  name: string;
+  mode: "enforce" | "monitor";
+  block_shell: boolean;
+  block_filesystem: boolean;
+  block_network: boolean;
+  block_injection: boolean;
+  allowed_hosts: string[];
+  allowed_write_paths: string[];
+  approval_required_tools: string[];
+  deny_threshold: number;
+  approval_threshold: number;
+};
+
+export type PolicyVersionRow = {
+  id: string;
+  version: number;
+  note: string | null;
+  created_at: string;
+  snapshot: PolicySnapshot;
+};
+
+function toPolicy(row: PolicyRow): GuardPolicy {
+  return {
+    mode: row.mode,
+    block_shell: row.block_shell,
+    block_filesystem: row.block_filesystem,
+    block_network: row.block_network,
+    block_injection: row.block_injection,
+    allowed_hosts: row.allowed_hosts,
+    allowed_write_paths: row.allowed_write_paths,
+    approval_required_tools: row.approval_required_tools,
+    deny_threshold: row.deny_threshold,
+    approval_threshold: row.approval_threshold,
+  };
+}
+
+function snapshotOf(row: PolicyRow) {
+  return { name: row.name, ...toPolicy(row) };
+}
+
+type AuthedSupabase = { from: (table: string) => any };
+
+async function recordVersion(
+  supabase: AuthedSupabase,
+  userId: string,
+  row: PolicyRow,
+  note: string,
+): Promise<void> {
+  await supabase.from("policy_versions").insert({
+    policy_id: row.id,
+    user_id: userId,
+    version: row.version,
+    note,
+    snapshot: snapshotOf(row),
+  });
+}
+
+async function ensurePolicy(supabase: AuthedSupabase, userId: string): Promise<PolicyRow> {
+  const existing = await supabase
+    .from("policies")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (existing.error) throw new Error(existing.error.message);
+  if (existing.data) return existing.data as PolicyRow;
+
+  const created = await supabase
+    .from("policies")
+    .insert({
+      user_id: userId,
+      name: "Default agent policy",
+      is_default: true,
+      allowed_hosts: DEFAULT_POLICY.allowed_hosts,
+      allowed_write_paths: DEFAULT_POLICY.allowed_write_paths,
+      approval_required_tools: DEFAULT_POLICY.approval_required_tools,
+    })
+    .select("*")
+    .single();
+  if (created.error) throw new Error(created.error.message);
+  const row = created.data as PolicyRow;
+  await recordVersion(supabase, userId, row, "Initial policy created");
+  return row;
+}
+
 export const getPolicy = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<PolicyRow> => {
-    const { supabase, userId } = context;
-    const existing = await supabase
-      .from("policies")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (existing.error) throw new Error(existing.error.message);
-    if (existing.data) return existing.data as PolicyRow;
+  .handler(async ({ context }): Promise<PolicyRow> => ensurePolicy(context.supabase as AuthedSupabase, context.userId));
 
-    const created = await supabase
-      .from("policies")
-      .insert({
-        user_id: userId,
-        name: "Default agent policy",
-        is_default: true,
-        allowed_hosts: DEFAULT_POLICY.allowed_hosts,
-        allowed_write_paths: DEFAULT_POLICY.allowed_write_paths,
-        approval_required_tools: DEFAULT_POLICY.approval_required_tools,
-      })
-      .select("*")
-      .single();
-    if (created.error) throw new Error(created.error.message);
-    return created.data as PolicyRow;
+export const listPolicyVersions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<PolicyVersionRow[]> => {
+    const result = await context.supabase
+      .from("policy_versions")
+      .select("id, version, note, created_at, snapshot")
+      .eq("user_id", context.userId)
+      .order("version", { ascending: false })
+      .limit(50);
+    if (result.error) throw new Error(result.error.message);
+    return (result.data ?? []) as PolicyVersionRow[];
   });
 
 export const updatePolicy = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => policyUpdateSchema.parse(input))
   .handler(async ({ data, context }): Promise<PolicyRow> => {
-    const { id, ...patch } = data;
+    const { id, note, name, ...patch } = data;
+    const current = await context.supabase
+      .from("policies")
+      .select("version")
+      .eq("id", id)
+      .eq("user_id", context.userId)
+      .single();
+    if (current.error) throw new Error(current.error.message);
+
+    const nextVersion = Number(current.data.version ?? 1) + 1;
     const result = await context.supabase
       .from("policies")
-      .update(patch)
+      .update({ ...patch, ...(name ? { name } : {}), version: nextVersion })
+
       .eq("id", id)
       .eq("user_id", context.userId)
       .select("*")
       .single();
     if (result.error) throw new Error(result.error.message);
-    return result.data as PolicyRow;
+
+    const row = result.data as PolicyRow;
+    await recordVersion(
+      context.supabase as AuthedSupabase,
+      context.userId,
+      row,
+      (note ?? "").trim() || "Policy updated",
+    );
+    return row;
   });
 
 export const listKeys = createServerFn({ method: "GET" })
@@ -82,13 +175,7 @@ export const createKey = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string }) => ({ name: String(input.name ?? "").trim().slice(0, 60) || "Agent key" }))
   .handler(async ({ data, context }) => {
     const { generateApiKey, hashApiKey } = await import("@/lib/guard/keys.server");
-    const policy = await context.supabase
-      .from("policies")
-      .select("id")
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    const policy = await ensurePolicy(context.supabase as AuthedSupabase, context.userId);
 
     const { key, prefix } = generateApiKey();
     const key_hash = await hashApiKey(key);
@@ -100,7 +187,7 @@ export const createKey = createServerFn({ method: "POST" })
         name: data.name,
         key_prefix: prefix,
         key_hash,
-        policy_id: policy.data?.id ?? null,
+        policy_id: policy.id,
       })
       .select("id, name, key_prefix, created_at")
       .single();
@@ -128,7 +215,9 @@ export const listDecisions = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const result = await context.supabase
       .from("decisions")
-      .select("id, agent_id, source, action_type, verdict, risk_score, enforced, reasons, action, created_at")
+      .select(
+        "id, agent_id, source, action_type, verdict, risk_score, enforced, reasons, action, policy_version, created_at",
+      )
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false })
       .limit(200);
@@ -141,51 +230,14 @@ export const evaluateFromConsole = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => actionSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const existing = await supabase
-      .from("policies")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (existing.error) throw new Error(existing.error.message);
-
-    let row = existing.data as PolicyRow | null;
-    if (!row) {
-      const created = await supabase
-        .from("policies")
-        .insert({
-          user_id: userId,
-          name: "Default agent policy",
-          is_default: true,
-          allowed_hosts: DEFAULT_POLICY.allowed_hosts,
-          allowed_write_paths: DEFAULT_POLICY.allowed_write_paths,
-          approval_required_tools: DEFAULT_POLICY.approval_required_tools,
-        })
-        .select("*")
-        .single();
-      if (created.error) throw new Error(created.error.message);
-      row = created.data as PolicyRow;
-    }
-
-    const policy: GuardPolicy = {
-      mode: row.mode,
-      block_shell: row.block_shell,
-      block_filesystem: row.block_filesystem,
-      block_network: row.block_network,
-      block_injection: row.block_injection,
-      allowed_hosts: row.allowed_hosts,
-      allowed_write_paths: row.allowed_write_paths,
-      approval_required_tools: row.approval_required_tools,
-      deny_threshold: row.deny_threshold,
-      approval_threshold: row.approval_threshold,
-    };
-
+    const row = await ensurePolicy(supabase as AuthedSupabase, userId);
+    const policy = toPolicy(row);
     const result = evaluateAction(data as GuardAction, policy);
 
     const logged = await supabase.from("decisions").insert({
       user_id: userId,
       policy_id: row.id,
+      policy_version: row.version,
       agent_id: data.agent_id ?? "console",
       source: "console",
       action_type: result.action_type,
@@ -197,5 +249,10 @@ export const evaluateFromConsole = createServerFn({ method: "POST" })
     });
     if (logged.error) throw new Error(logged.error.message);
 
-    return result;
+    return {
+      ...result,
+      policy_version: row.version,
+      policy_name: row.name,
+      thresholds: { deny: row.deny_threshold, approval: row.approval_threshold },
+    };
   });
