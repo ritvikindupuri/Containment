@@ -158,6 +158,34 @@ export const updatePolicy = createServerFn({ method: "POST" })
     return row;
   });
 
+/** Applies an AI-recommended policy to the caller's policy as a new version. */
+export const applyRecommendedPolicy = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => recommendedPolicySchema.parse(input))
+  .handler(async ({ data, context }): Promise<PolicyRow> => {
+    const { note, ...patch } = data;
+    const current = await ensurePolicy(context.supabase as AuthedSupabase, context.userId);
+    const nextVersion = Number(current.version ?? 1) + 1;
+
+    const result = await context.supabase
+      .from("policies")
+      .update({ ...patch, version: nextVersion })
+      .eq("id", current.id)
+      .eq("user_id", context.userId)
+      .select("*")
+      .single();
+    if (result.error) throw new Error(result.error.message);
+
+    const row = result.data as PolicyRow;
+    await recordVersion(
+      context.supabase as AuthedSupabase,
+      context.userId,
+      row,
+      (note ?? "").trim() || "Approved recommended policy",
+    );
+    return row;
+  });
+
 export const listKeys = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
