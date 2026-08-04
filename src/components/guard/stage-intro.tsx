@@ -29,8 +29,8 @@ export const STAGE_INTRO: Record<StageKey | "policy", Intro> = {
         does: "Repo-specific test cases — ordinary build steps plus realistic escape attempts. Press Run on one to see the verdict without touching your real agent.",
       },
       {
-        name: "Agent keys",
-        does: "The password your real agent uses to call Containment from your own codebase or CI. Copy the ready-made cURL, TypeScript or Python snippet.",
+        name: "Production handoff",
+        does: "After the simulator proves the policy works, you create one agent key and paste the ready-made cURL, TypeScript or Python snippet into your real agent. The simulator never needs a key.",
       },
     ],
   },
