@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAgentRunRouteImport } from './routes/_authenticated/agent-run'
 import { Route as AuthenticatedConsoleRouteImport } from './routes/_authenticated/console'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedPolicyRouteImport } from './routes/_authenticated/policy'
 import { Route as ApiPublicV1GuardRouteImport } from './routes/api/public/v1/guard'
 
@@ -47,6 +48,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPolicyRoute = AuthenticatedPolicyRouteImport.update({
   id: '/policy',
   path: '/policy',
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/agent-run': typeof AuthenticatedAgentRunRoute
   '/console': typeof AuthenticatedConsoleRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/history': typeof AuthenticatedHistoryRoute
   '/policy': typeof AuthenticatedPolicyRoute
   '/api/public/v1/guard': typeof ApiPublicV1GuardRoute
 }
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/agent-run': typeof AuthenticatedAgentRunRoute
   '/console': typeof AuthenticatedConsoleRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/history': typeof AuthenticatedHistoryRoute
   '/policy': typeof AuthenticatedPolicyRoute
   '/api/public/v1/guard': typeof ApiPublicV1GuardRoute
 }
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/_authenticated/agent-run': typeof AuthenticatedAgentRunRoute
   '/_authenticated/console': typeof AuthenticatedConsoleRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/policy': typeof AuthenticatedPolicyRoute
   '/api/public/v1/guard': typeof ApiPublicV1GuardRoute
 }
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
     | '/agent-run'
     | '/console'
     | '/dashboard'
+    | '/history'
     | '/policy'
     | '/api/public/v1/guard'
   fileRoutesByTo: FileRoutesByTo
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
     | '/agent-run'
     | '/console'
     | '/dashboard'
+    | '/history'
     | '/policy'
     | '/api/public/v1/guard'
   id:
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
     | '/_authenticated/agent-run'
     | '/_authenticated/console'
     | '/_authenticated/dashboard'
+    | '/_authenticated/history'
     | '/_authenticated/policy'
     | '/api/public/v1/guard'
   fileRoutesById: FileRoutesById
@@ -169,6 +181,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/history': {
+      id: '/_authenticated/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof AuthenticatedHistoryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/policy': {
       id: '/_authenticated/policy'
       path: '/policy'
@@ -190,6 +209,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAgentRunRoute: typeof AuthenticatedAgentRunRoute
   AuthenticatedConsoleRoute: typeof AuthenticatedConsoleRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedPolicyRoute: typeof AuthenticatedPolicyRoute
 }
 
@@ -197,6 +217,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAgentRunRoute: AuthenticatedAgentRunRoute,
   AuthenticatedConsoleRoute: AuthenticatedConsoleRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedPolicyRoute: AuthenticatedPolicyRoute,
 }
 
