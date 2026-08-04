@@ -322,14 +322,16 @@ export const evaluateAgentStep = createServerFn({ method: "POST" })
     };
   });
 
+export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+
 export type ApprovalRow = {
   id: string;
   agent_id: string | null;
   source: string;
   action_type: string;
   risk_score: number;
-  reasons: unknown;
-  action: unknown;
+  reasons: Json;
+  action: Json;
   policy_version: number | null;
   approval_state: "pending" | "approved" | "rejected";
   review_recommendation: "approve" | "reject" | null;
