@@ -541,24 +541,37 @@ run_command("npm install lodash")  # only reached when allowed`,
           </div>
         </FlowStep>
 
-        <div className="relative py-4">
-          <div className="absolute inset-0 flex items-center" aria-hidden="true">
-            <div className="w-full border-t border-border" />
+        {!auditDone ? (
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4">
+            <p className="text-sm font-medium text-foreground">
+              Nothing else to set up yet
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Everything above runs inside Containment — no keys, no wiring. Once you have watched a
+              live run and reviewed the audit trail, this is where you connect your own production
+              agent so the same guard protects it for real.
+            </p>
           </div>
-          <div className="relative flex justify-center">
-            <span className="bg-background px-3 text-xs font-medium text-muted-foreground">Production handoff</span>
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <div className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-background px-3 text-xs font-medium text-muted-foreground">Production handoff</span>
+              </div>
+            </div>
 
-        <FlowStep
-          index={5}
-          title="Deploy: connect your production agent"
-          summary="Create a key and drop the snippet into your real agent so it asks Containment before every real action."
-          locked={!runDone}
-          lockedHint="Finish the guided setup run first — then wire the same check into your own agent."
-          done={keysDone}
-          active={runDone && !keysDone}
-        >
+            <FlowStep
+              index={5}
+              title="Deploy: connect your production agent"
+              summary="You have seen the guard work on this repo. Now create a key and drop the snippet into your real agent so it asks Containment before every real action."
+              locked={false}
+              lockedHint=""
+              done={keysDone}
+              active={!keysDone}
+            >
           <div className="space-y-4">
             <KeyExplainer />
             <form
