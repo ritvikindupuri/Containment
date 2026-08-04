@@ -17,6 +17,7 @@ import {
 import { AppShell } from "@/components/guard/app-shell";
 import { FlowStep } from "@/components/guard/flow-step";
 import { FlowGate } from "@/components/guard/flow-gate";
+import { useFlowProgress } from "@/lib/flow";
 import { GettingStarted } from "@/components/guard/getting-started";
 import { StageIntro } from "@/components/guard/stage-intro";
 import { KeyExplainer } from "@/components/guard/key-explainer";
@@ -214,6 +215,7 @@ function ConsolePage() {
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not revoke key"),
   });
 
+  const flow = useFlowProgress();
   const repoDone = Boolean(session);
   const policyDone = Boolean(session?.policy_approved);
   const examplesDone = (session?.examples_run ?? 0) > 0;
