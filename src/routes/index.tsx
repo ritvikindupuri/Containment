@@ -117,23 +117,23 @@ function Landing() {
               {/* AI agent breaking out of the shield */}
               <svg
                 aria-hidden
-                className="pointer-events-none absolute -right-6 -top-2 size-28 text-destructive sm:size-32"
+                className="pointer-events-none absolute right-8 top-4 size-24 text-destructive"
                 viewBox="0 0 100 100"
                 fill="none"
               >
                 <path
-                  d="M8 88 C 30 78, 52 58, 74 26"
+                  d="M10 90 C 32 76, 54 54, 76 24"
                   stroke="currentColor"
-                  strokeWidth="2"
+                  strokeWidth="2.5"
                   strokeDasharray="5 6"
                   strokeLinecap="round"
-                  opacity="0.6"
+                  opacity="0.7"
                 />
               </svg>
-              <div className="absolute -right-8 -top-6 flex size-11 items-center justify-center rounded-xl border border-destructive/50 bg-card text-destructive shadow-lg sm:size-12">
+              <div className="absolute right-4 top-0 flex size-11 items-center justify-center rounded-xl border border-destructive/50 bg-card text-destructive shadow-lg sm:size-12">
                 <Bot className="size-6" />
               </div>
-              <span className="absolute -right-4 top-7 rounded-md border border-destructive/40 bg-card/90 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-destructive">
+              <span className="absolute right-0 top-14 rounded-md border border-destructive/40 bg-card/90 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-destructive">
                 escape attempt
               </span>
             </div>
