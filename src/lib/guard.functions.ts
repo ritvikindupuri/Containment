@@ -141,17 +141,33 @@ export const evaluateFromConsole = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => actionSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const policyRow = await supabase
+    const existing = await supabase
       .from("policies")
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
-    if (policyRow.error) throw new Error(policyRow.error.message);
-    if (!policyRow.data) throw new Error("No policy configured yet.");
+    if (existing.error) throw new Error(existing.error.message);
 
-    const row = policyRow.data as PolicyRow;
+    let row = existing.data as PolicyRow | null;
+    if (!row) {
+      const created = await supabase
+        .from("policies")
+        .insert({
+          user_id: userId,
+          name: "Default agent policy",
+          is_default: true,
+          allowed_hosts: DEFAULT_POLICY.allowed_hosts,
+          allowed_write_paths: DEFAULT_POLICY.allowed_write_paths,
+          approval_required_tools: DEFAULT_POLICY.approval_required_tools,
+        })
+        .select("*")
+        .single();
+      if (created.error) throw new Error(created.error.message);
+      row = created.data as PolicyRow;
+    }
+
     const policy: GuardPolicy = {
       mode: row.mode,
       block_shell: row.block_shell,
