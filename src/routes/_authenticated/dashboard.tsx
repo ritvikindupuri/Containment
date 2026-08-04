@@ -33,6 +33,7 @@ type DecisionRow = {
   enforced: boolean;
   reasons: unknown;
   action: unknown;
+  policy_version: number | null;
   created_at: string;
 };
 
@@ -141,7 +142,7 @@ function DashboardPage() {
                     {open ? (
                       <div className="mt-3 space-y-3 rounded-md border border-border bg-surface/50 p-4">
                         <p className="label-mono">
-                          agent {row.agent_id ?? "unknown"} · via {row.source}
+                          agent {row.agent_id ?? "unknown"} · via {row.source} · policy v{row.policy_version ?? 1}
                         </p>
                         {findings.length === 0 ? (
                           <p className="text-sm text-muted-foreground">No rules fired for this action.</p>
