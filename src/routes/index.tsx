@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  ShieldHalf,
   TerminalSquare,
   FolderLock,
   Network,
@@ -12,7 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LiveDiagram } from "@/components/landing/live-diagram";
-import isoLogo from "@/assets/containment-iso.png";
+import logoAsset from "@/assets/containment-logo.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
