@@ -53,6 +53,40 @@ const VECTORS = [
   },
 ];
 
+const USE_FLOW = [
+  {
+    title: "Wrap the runtime",
+    body: "Add one HTTP call at the point your agent framework executes a shell command, file operation, request or tool call.",
+  },
+  {
+    title: "Publish a policy",
+    body: "Security sets the allowed egress hosts, writable roots, approval-gated tools and risk thresholds. Every change is a new version.",
+  },
+  {
+    title: "Start in monitor mode",
+    body: "Verdicts are recorded without blocking, so you see what your agents would have done before anything breaks.",
+  },
+  {
+    title: "Flip to enforce",
+    body: "Deny stops the action, needs-approval routes it to a human, allow passes through. The audit trail proves what was contained.",
+  },
+];
+
+const USE_CASES = [
+  {
+    who: "Platform teams shipping agents",
+    body: "Give every internal agent the same guardrails without rewriting each one, and prove to reviewers that a coding agent cannot reach production credentials.",
+  },
+  {
+    who: "Security and compliance",
+    body: "One audit trail of every attempted action, the rule that fired and the policy version in force — evidence for SOC 2, internal review and incident response.",
+  },
+  {
+    who: "Products running customer agents",
+    body: "Contain untrusted prompts and injected web content so a hostile page cannot turn your agent into an exfiltration or payments tool.",
+  },
+];
+
 const SNIPPET = `curl -X POST https://<your-app>/api/public/v1/guard \\
   -H "x-guard-key: agk_live_..." \\
   -H "content-type: application/json" \\
@@ -117,6 +151,34 @@ function Landing() {
               <div key={title} className="rounded-lg border border-border bg-card p-4">
                 <p className="font-medium">{title}</p>
                 <p className="mt-1 text-sm text-muted-foreground">{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y border-border bg-surface/40">
+        <div className="mx-auto max-w-6xl px-5 py-20">
+          <span className="label-mono">How companies use it</span>
+          <h2 className="mt-3 text-3xl font-semibold">Where Containment sits in your stack</h2>
+          <p className="mt-4 max-w-2xl text-muted-foreground">
+            Your agent already decides what it wants to do. Containment is the checkpoint between that decision and the
+            machine that would carry it out — the same place a firewall sits between an app and the internet.
+          </p>
+          <ol className="mt-10 grid gap-5 md:grid-cols-4">
+            {USE_FLOW.map((step, index) => (
+              <li key={step.title} className="rounded-lg border border-border bg-card p-5">
+                <span className="label-mono">Step {index + 1}</span>
+                <p className="mt-2 font-medium">{step.title}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {USE_CASES.map((useCase) => (
+              <div key={useCase.who} className="rounded-lg border border-border bg-card p-5">
+                <p className="font-medium">{useCase.who}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{useCase.body}</p>
               </div>
             ))}
           </div>
