@@ -22,9 +22,10 @@ export function GettingStarted() {
           <h2 className="text-base font-semibold">Start here — each step unlocks the next</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Containment checks every action your AI agent wants to take and answers allow, needs approval or deny.
-            {pendingApprovals > 0
-              ? ` ${pendingApprovals} action${pendingApprovals === 1 ? "" : "s"} are waiting for your approval.`
+            {pendingApprovals > 0 && stages[2]?.unlocked
+              ? ` ${pendingApprovals} action${pendingApprovals === 1 ? "" : "s"} are waiting for your approval in step 3.`
               : ""}
+
           </p>
 
           <ol className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">

@@ -20,7 +20,6 @@ export type Stage = {
 };
 
 type DecisionLite = {
-  source?: string;
   verdict?: string;
   approval_state?: string;
 };
@@ -35,19 +34,21 @@ export function useFlowProgress() {
   const { session, loaded } = useRepoSession();
 
   const rows = decisions.data ?? [];
-  const hasDecision = rows.length > 0;
-  const hasAgentRun = rows.some((row) => row.source === "agent_run");
   const pendingApprovals = rows.filter((row) => row.approval_state === "pending").length;
   const resolvedApprovals = rows.filter(
     (row) => row.approval_state === "approved" || row.approval_state === "rejected",
   ).length;
 
+  // Progress is read from the CURRENT session only. Decisions left over from an
+  // earlier session must never unlock a later step of a new one.
   const repoDone = Boolean(session);
-  const policyDone = Boolean(session?.policy_approved);
-  const examplesDone = (session?.examples_run ?? 0) > 0 || hasDecision;
+  const policyDone = repoDone && Boolean(session?.policy_approved);
+  const examplesDone = policyDone && (session?.examples_run ?? 0) > 0;
   const setupDone = repoDone && policyDone && examplesDone;
-  const runDone = Boolean(session?.live_run_done) || hasAgentRun;
+  const runDone = setupDone && Boolean(session?.live_run_done);
   const auditDone = runDone && (pendingApprovals === 0 || resolvedApprovals > 0);
+  const policyTuned = runDone && Boolean(session?.policy_version);
+
 
   const stages: Stage[] = [
     {
@@ -95,7 +96,7 @@ export function useFlowProgress() {
       body: "Once you have seen real verdicts, tighten thresholds, allowlists and enforcement. Every save is a new version.",
       cta: "Open policy",
       unlocked: runDone,
-      done: runDone && policyDone,
+      done: policyTuned,
       lockedHint: "Complete one live run first — tune the policy against real verdicts, not guesses.",
     },
   ];
