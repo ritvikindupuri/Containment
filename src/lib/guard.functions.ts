@@ -176,8 +176,8 @@ export const evaluateFromConsole = createServerFn({ method: "POST" })
       verdict: result.intended_verdict,
       risk_score: result.risk_score,
       enforced: result.enforced,
-      reasons: result.findings,
-      action: data as unknown as Record<string, unknown>,
+      reasons: JSON.parse(JSON.stringify(result.findings)),
+      action: JSON.parse(JSON.stringify(data)),
     });
     if (logged.error) throw new Error(logged.error.message);
 
