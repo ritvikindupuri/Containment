@@ -35,8 +35,8 @@ const SLIDES = [
     ],
   },
   {
-    title: "Steps 3 and 4 — Audit, approvals and policy",
-    body: "Everything is logged permanently. Actions that need a human wait in an approval queue where an AI reviewer explains the risk and recommends releasing or holding them. Then you tune the rulebook.",
+    title: "Step 3 — Audit and approvals",
+    body: "Everything is logged permanently. Actions that need a human wait in an approval queue where an AI reviewer explains the risk and recommends releasing or holding them. The policy itself is written and versioned by the agent, so there is no rulebook to maintain by hand.",
     points: [
       "Every decision records the policy version that ruled it.",
       "Each policy save creates a new version with your change note.",
@@ -46,7 +46,7 @@ const SLIDES = [
 ];
 
 /**
- * First-run walkthrough. Explains the product and all four stages before the
+ * First-run walkthrough. Explains the product and all three stages before the
  * user touches anything. Cannot be dismissed — only completed.
  */
 export function WelcomeTour() {

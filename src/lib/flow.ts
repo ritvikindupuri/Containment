@@ -3,14 +3,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { listDecisions } from "@/lib/guard.functions";
 import { useRepoSession } from "@/lib/repo-session";
 
-/** The four stages of the app, in the order a company actually rolls this out. */
-export type StageKey = "setup" | "live_run" | "audit" | "policy";
+/** The three stages of the app, in the order a company actually rolls this out. */
+export type StageKey = "setup" | "live_run" | "audit";
 
 export type Stage = {
   key: StageKey;
   step: number;
   label: string;
-  to: "/console" | "/agent-run" | "/dashboard" | "/policy";
+  to: "/console" | "/agent-run" | "/dashboard";
   title: string;
   body: string;
   cta: string;
@@ -47,7 +47,7 @@ export function useFlowProgress() {
   const setupDone = repoDone && policyDone && examplesDone;
   const runDone = setupDone && Boolean(session?.live_run_done);
   const auditDone = runDone && (pendingApprovals === 0 || resolvedApprovals > 0);
-  const policyTuned = runDone && Boolean(session?.policy_version);
+  
 
 
   const stages: Stage[] = [
@@ -86,18 +86,6 @@ export function useFlowProgress() {
       unlocked: runDone,
       done: auditDone,
       lockedHint: "Complete one live run first — there is nothing to audit yet.",
-    },
-    {
-      key: "policy",
-      step: 4,
-      label: "Policy",
-      to: "/policy",
-      title: "Tune the policy by hand",
-      body: "Once you have seen real verdicts, tighten thresholds, allowlists and enforcement. Every save is a new version.",
-      cta: "Open policy",
-      unlocked: runDone,
-      done: policyTuned,
-      lockedHint: "Complete one live run first — tune the policy against real verdicts, not guesses.",
     },
   ];
 

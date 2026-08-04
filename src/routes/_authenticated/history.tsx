@@ -44,7 +44,7 @@ function HistoryPage() {
           <h1 className="mt-2 text-3xl font-semibold">Your sessions</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Each session is one repository plus everything configured for it — the suggested policy, the actions you ran
-            and how far through the four steps you got. Reload one to pick up exactly where you left off, or clear
+            and how far through the steps you got. Reload one to pick up exactly where you left off, or clear
             everything and start fresh.
           </p>
         </div>
