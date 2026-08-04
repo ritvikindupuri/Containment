@@ -68,6 +68,7 @@ export type Database = {
           enforced: boolean
           id: string
           policy_id: string | null
+          policy_version: number | null
           reasons: Json
           risk_score: number
           source: string
@@ -83,6 +84,7 @@ export type Database = {
           enforced?: boolean
           id?: string
           policy_id?: string | null
+          policy_version?: number | null
           reasons?: Json
           risk_score?: number
           source?: string
@@ -98,6 +100,7 @@ export type Database = {
           enforced?: boolean
           id?: string
           policy_id?: string | null
+          policy_version?: number | null
           reasons?: Json
           risk_score?: number
           source?: string
@@ -139,6 +142,7 @@ export type Database = {
           name: string
           updated_at: string
           user_id: string
+          version: number
         }
         Insert: {
           allowed_hosts?: string[]
@@ -157,6 +161,7 @@ export type Database = {
           name: string
           updated_at?: string
           user_id: string
+          version?: number
         }
         Update: {
           allowed_hosts?: string[]
@@ -175,8 +180,47 @@ export type Database = {
           name?: string
           updated_at?: string
           user_id?: string
+          version?: number
         }
         Relationships: []
+      }
+      policy_versions: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          policy_id: string
+          snapshot: Json
+          user_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          policy_id: string
+          snapshot?: Json
+          user_id: string
+          version: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          policy_id?: string
+          snapshot?: Json
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_versions_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
