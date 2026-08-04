@@ -38,9 +38,9 @@ export function KeyExplainer() {
       <div>
         <p className="label-mono text-primary">What is this for?</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          An agent key is how your <em>real</em> agent — the one running in your codebase, CI job or product — talks to
-          Containment. The demo run you just watched runs inside Containment and does not need a key; your actual
-          agent needs a key so we know which workspace and policy the request belongs to.
+          An agent key is how your <em>production</em> agent — the one running in your codebase, CI job or product — talks to
+          Containment. The guided setup run runs inside Containment and does not need a key; your real agent needs a key
+          so we know which workspace and policy the request belongs to.
         </p>
       </div>
 
