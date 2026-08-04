@@ -236,7 +236,7 @@ export function AgentRun() {
                         </pre>
                         {step.action.untrusted_context ? (
                           <p className="mt-2 rounded-md border border-warning/30 bg-warning/5 p-2 text-[11px] text-muted-foreground">
-                            Untrusted text that influenced this step: “{step.action.untrusted_context.slice(0, 200)}”
+                            Influenced by untrusted content: “{step.action.untrusted_context.slice(0, 240)}”
                           </p>
                         ) : null}
                       </div>
