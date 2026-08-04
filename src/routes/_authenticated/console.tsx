@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/guard/app-shell";
 import { FlowStep } from "@/components/guard/flow-step";
+import { FlowGate } from "@/components/guard/flow-gate";
 import { GettingStarted } from "@/components/guard/getting-started";
 import { KeyExplainer } from "@/components/guard/key-explainer";
 import { PolicyTestRunner } from "@/components/guard/policy-test-runner";
@@ -259,6 +260,7 @@ run_command("npm install lodash")  # only reached when allowed`,
 
   return (
     <AppShell>
+      <FlowGate stage="setup">
       <GettingStarted />
       <span className="label-mono">Console</span>
       <h1 className="mt-2 text-3xl font-semibold">Guided setup</h1>
@@ -642,6 +644,7 @@ run_command("npm install lodash")  # only reached when allowed`,
           </div>
         </FlowStep>
       </div>
+      </FlowGate>
     </AppShell>
   );
 }

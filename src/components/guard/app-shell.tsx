@@ -1,23 +1,33 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ShieldHalf, LayoutDashboard, KeyRound, SlidersHorizontal, LogOut, PlayCircle } from "lucide-react";
+import {
+  ShieldHalf,
+  LayoutDashboard,
+  KeyRound,
+  SlidersHorizontal,
+  LogOut,
+  PlayCircle,
+  Lock,
+} from "lucide-react";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useFlowProgress, type StageKey } from "@/lib/flow";
 
-const NAV = [
-  { to: "/agent-run", label: "Live run", icon: PlayCircle },
-  { to: "/dashboard", label: "Audit", icon: LayoutDashboard },
-  { to: "/console", label: "Console", icon: KeyRound },
-  { to: "/policy", label: "Policy", icon: SlidersHorizontal },
-] as const;
-
+const ICONS: Record<StageKey, typeof KeyRound> = {
+  setup: KeyRound,
+  live_run: PlayCircle,
+  audit: LayoutDashboard,
+  policy: SlidersHorizontal,
+};
 
 export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { stages, pendingApprovals } = useFlowProgress();
 
   async function signOut() {
     await queryClient.cancelQueries();
@@ -35,12 +45,36 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="font-semibold tracking-tight">Containment</span>
           </Link>
           <nav className="flex items-center gap-1">
-            {NAV.map((item) => {
-              const active = pathname.startsWith(item.to);
+            {stages.map((stage) => {
+              const Icon = ICONS[stage.key];
+              const active = pathname.startsWith(stage.to);
+              const badge =
+                stage.key === "audit" && pendingApprovals > 0 ? (
+                  <span className="ml-1 rounded-full bg-warning/20 px-1.5 font-mono text-[10px] text-warning">
+                    {pendingApprovals}
+                  </span>
+                ) : null;
+
+              if (!stage.unlocked) {
+                return (
+                  <button
+                    key={stage.key}
+                    type="button"
+                    title={stage.lockedHint}
+                    onClick={() => toast.info(stage.lockedHint)}
+                    className="flex cursor-not-allowed items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground/50"
+                  >
+                    <Lock className="size-3.5" />
+                    <span className="font-mono text-[11px]">{stage.step}</span>
+                    <span className="hidden sm:inline">{stage.label}</span>
+                  </button>
+                );
+              }
+
               return (
                 <Link
-                  key={item.to}
-                  to={item.to}
+                  key={stage.key}
+                  to={stage.to}
                   className={cn(
                     "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
                     active
@@ -48,8 +82,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                       : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
                   )}
                 >
-                  <item.icon className="size-4" />
-                  {item.label}
+                  <Icon className="size-4" />
+                  <span className="font-mono text-[11px]">{stage.step}</span>
+                  <span className="hidden sm:inline">{stage.label}</span>
+                  {badge}
                 </Link>
               );
             })}

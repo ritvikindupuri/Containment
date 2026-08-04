@@ -64,12 +64,19 @@ export type Database = {
           action_type: Database["public"]["Enums"]["guard_action_type"]
           agent_id: string | null
           api_key_id: string | null
+          approval_state: string
           created_at: string
           enforced: boolean
           id: string
           policy_id: string | null
           policy_version: number | null
           reasons: Json
+          resolution_note: string | null
+          resolved_at: string | null
+          review_conditions: string | null
+          review_reasoning: string | null
+          review_recommendation: string | null
+          reviewed_at: string | null
           risk_score: number
           source: string
           user_id: string
@@ -80,12 +87,19 @@ export type Database = {
           action_type: Database["public"]["Enums"]["guard_action_type"]
           agent_id?: string | null
           api_key_id?: string | null
+          approval_state?: string
           created_at?: string
           enforced?: boolean
           id?: string
           policy_id?: string | null
           policy_version?: number | null
           reasons?: Json
+          resolution_note?: string | null
+          resolved_at?: string | null
+          review_conditions?: string | null
+          review_reasoning?: string | null
+          review_recommendation?: string | null
+          reviewed_at?: string | null
           risk_score?: number
           source?: string
           user_id: string
@@ -96,12 +110,19 @@ export type Database = {
           action_type?: Database["public"]["Enums"]["guard_action_type"]
           agent_id?: string | null
           api_key_id?: string | null
+          approval_state?: string
           created_at?: string
           enforced?: boolean
           id?: string
           policy_id?: string | null
           policy_version?: number | null
           reasons?: Json
+          resolution_note?: string | null
+          resolved_at?: string | null
+          review_conditions?: string | null
+          review_reasoning?: string | null
+          review_recommendation?: string | null
+          reviewed_at?: string | null
           risk_score?: number
           source?: string
           user_id?: string

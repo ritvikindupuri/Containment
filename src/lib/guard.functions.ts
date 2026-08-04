@@ -244,7 +244,7 @@ export const listDecisions = createServerFn({ method: "GET" })
     const result = await context.supabase
       .from("decisions")
       .select(
-        "id, agent_id, source, action_type, verdict, risk_score, enforced, reasons, action, policy_version, created_at",
+        "id, agent_id, source, action_type, verdict, risk_score, enforced, reasons, action, policy_version, approval_state, review_recommendation, review_reasoning, review_conditions, reviewed_at, resolved_at, resolution_note, created_at",
       )
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false })
@@ -266,6 +266,7 @@ export const evaluateFromConsole = createServerFn({ method: "POST" })
       user_id: userId,
       policy_id: row.id,
       policy_version: row.version,
+      approval_state: result.intended_verdict === "needs_approval" ? "pending" : "none",
       agent_id: data.agent_id ?? "console",
       source: "console",
       action_type: result.action_type,
@@ -274,11 +275,12 @@ export const evaluateFromConsole = createServerFn({ method: "POST" })
       enforced: result.enforced,
       reasons: JSON.parse(JSON.stringify(result.findings)),
       action: JSON.parse(JSON.stringify(data)),
-    });
+    }).select("id").single();
     if (logged.error) throw new Error(logged.error.message);
 
     return {
       ...result,
+      decision_id: logged.data?.id as string,
       policy_version: row.version,
       policy_name: row.name,
       thresholds: { deny: row.deny_threshold, approval: row.approval_threshold },
@@ -298,6 +300,7 @@ export const evaluateAgentStep = createServerFn({ method: "POST" })
       user_id: userId,
       policy_id: row.id,
       policy_version: row.version,
+      approval_state: result.intended_verdict === "needs_approval" ? "pending" : "none",
       agent_id: data.agent_id ?? "agent-run",
       source: "agent_run",
       action_type: result.action_type,
@@ -306,14 +309,134 @@ export const evaluateAgentStep = createServerFn({ method: "POST" })
       enforced: result.enforced,
       reasons: JSON.parse(JSON.stringify(result.findings)),
       action: JSON.parse(JSON.stringify(data)),
-    });
+    }).select("id").single();
     if (logged.error) throw new Error(logged.error.message);
 
     return {
       ...result,
+      decision_id: logged.data?.id as string,
       policy_version: row.version,
       policy_name: row.name,
       policy_mode: row.mode,
       thresholds: { deny: row.deny_threshold, approval: row.approval_threshold },
     };
+  });
+
+export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+
+export type ApprovalRow = {
+  id: string;
+  agent_id: string | null;
+  source: string;
+  action_type: string;
+  risk_score: number;
+  reasons: Json;
+  action: Json;
+  policy_version: number | null;
+  approval_state: "pending" | "approved" | "rejected";
+  review_recommendation: "approve" | "reject" | null;
+  review_reasoning: string | null;
+  review_conditions: string | null;
+  reviewed_at: string | null;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  created_at: string;
+};
+
+const APPROVAL_COLUMNS =
+  "id, agent_id, source, action_type, risk_score, reasons, action, policy_version, approval_state, review_recommendation, review_reasoning, review_conditions, reviewed_at, resolved_at, resolution_note, created_at";
+
+/** Every action the policy sent to a human, newest first. */
+export const listApprovals = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<ApprovalRow[]> => {
+    const result = await context.supabase
+      .from("decisions")
+      .select(APPROVAL_COLUMNS)
+      .eq("user_id", context.userId)
+      .in("approval_state", ["pending", "approved", "rejected"])
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (result.error) throw new Error(result.error.message);
+    return (result.data ?? []) as ApprovalRow[];
+  });
+
+/** Runs the AI reviewer over one pending action and stores its recommendation. */
+export const reviewApproval = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => ({ id: String(input?.id ?? "") }))
+  .handler(async ({ data, context }): Promise<ApprovalRow> => {
+    const pending = await context.supabase
+      .from("decisions")
+      .select(APPROVAL_COLUMNS)
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (pending.error) throw new Error(pending.error.message);
+    const row = pending.data as ApprovalRow;
+
+    const policyRow = await ensurePolicy(context.supabase as AuthedSupabase, context.userId);
+    const { reviewPendingAction } = await import("@/lib/review.server");
+    const review = await reviewPendingAction({
+      action: row.action,
+      findings: Array.isArray(row.reasons) ? (row.reasons as never[]) : [],
+      policy: toPolicy(policyRow),
+      risk_score: row.risk_score,
+      agent_id: row.agent_id,
+    });
+
+    const updated = await context.supabase
+      .from("decisions")
+      .update({
+        review_recommendation: review.recommendation,
+        review_reasoning: review.reasoning,
+        review_conditions: review.conditions,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .select(APPROVAL_COLUMNS)
+      .single();
+    if (updated.error) throw new Error(updated.error.message);
+    return updated.data as ApprovalRow;
+  });
+
+/** The human's final call on a pending action. */
+export const resolveApproval = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string; decision: "approved" | "rejected"; note?: string }) => ({
+    id: String(input?.id ?? ""),
+    decision: input?.decision === "approved" ? ("approved" as const) : ("rejected" as const),
+    note: String(input?.note ?? "").slice(0, 300),
+  }))
+  .handler(async ({ data, context }): Promise<ApprovalRow> => {
+    const updated = await context.supabase
+      .from("decisions")
+      .update({
+        approval_state: data.decision,
+        resolution_note: data.note || null,
+        resolved_at: new Date().toISOString(),
+      })
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .eq("approval_state", "pending")
+      .select(APPROVAL_COLUMNS)
+      .single();
+    if (updated.error) throw new Error(updated.error.message);
+    return updated.data as ApprovalRow;
+  });
+
+/** One approval row, used by the live run when it pauses on a gated action. */
+export const getApproval = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => ({ id: String(input?.id ?? "") }))
+  .handler(async ({ data, context }): Promise<ApprovalRow> => {
+    const result = await context.supabase
+      .from("decisions")
+      .select(APPROVAL_COLUMNS)
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (result.error) throw new Error(result.error.message);
+    return result.data as ApprovalRow;
   });

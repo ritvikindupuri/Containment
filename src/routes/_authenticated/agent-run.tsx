@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/guard/app-shell";
 import { GettingStarted } from "@/components/guard/getting-started";
 import { AgentRun } from "@/components/guard/agent-run";
+import { FlowGate } from "@/components/guard/flow-gate";
 
 export const Route = createFileRoute("/_authenticated/agent-run")({
   head: () => ({
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/agent-run")({
 function AgentRunPage() {
   return (
     <AppShell>
+      <FlowGate stage="live_run">
       <GettingStarted />
       <header className="mb-6">
         <h1 className="text-xl font-semibold tracking-tight">Live agent run</h1>
@@ -35,6 +37,7 @@ function AgentRunPage() {
         </p>
       </header>
       <AgentRun />
+      </FlowGate>
     </AppShell>
   );
 }
