@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const DISMISS_KEY = "containment.getting-started.dismissed";
+export const POLICY_SAVED_KEY = "containment.policy.saved";
 
 type Step = {
   title: string;
@@ -27,8 +28,10 @@ export function GettingStarted() {
   const policy = useQuery({ queryKey: ["policy"], queryFn: () => fetchPolicy() as Promise<{ id: string } | null> });
 
   const [dismissed, setDismissed] = useState(true);
+  const [policySaved, setPolicySaved] = useState(false);
   useEffect(() => {
     setDismissed(window.localStorage.getItem(DISMISS_KEY) === "1");
+    setPolicySaved(window.localStorage.getItem(POLICY_SAVED_KEY) === "1");
   }, []);
 
   const loading = keys.isLoading || decisions.isLoading || policy.isLoading;
@@ -40,7 +43,7 @@ export function GettingStarted() {
     {
       title: "1. Set your policy",
       body: "Choose which escape vectors to block, monitor vs. enforce, and your allowlists.",
-      done: hasPolicy,
+      done: policySaved && hasPolicy,
       to: "/policy",
       cta: "Open policy",
     },

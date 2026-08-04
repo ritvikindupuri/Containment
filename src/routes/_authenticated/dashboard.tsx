@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { ShieldAlert, ShieldCheck, ShieldQuestion, Inbox } from "lucide-react";
 import { AppShell } from "@/components/guard/app-shell";
+import { GettingStarted } from "@/components/guard/getting-started";
 import { VerdictBadge, RiskMeter } from "@/components/guard/verdict-badge";
 import { listDecisions } from "@/lib/guard.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,6 +68,7 @@ function DashboardPage() {
 
   return (
     <AppShell>
+      <GettingStarted />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <span className="label-mono">Audit trail</span>
