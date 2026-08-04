@@ -90,9 +90,10 @@ const VERDICT_STYLES = {
 } as const;
 
 export function LiveDiagram() {
-  const [activeId, setActiveId] = useState(SAMPLES[1].id);
-  const sample = SAMPLES.find((item) => item.id === activeId) ?? SAMPLES[0];
+  const [activeId, setActiveId] = useState<string>("revshell");
+  const sample = SAMPLES.find((item) => item.id === activeId) ?? SAMPLES[0]!;
   const result = useMemo(() => evaluateAction(sample.action, DEFAULT_POLICY), [sample]);
+
   const style = VERDICT_STYLES[result.verdict];
   const contained = result.verdict !== "allow";
 
