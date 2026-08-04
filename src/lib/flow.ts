@@ -20,7 +20,6 @@ export type Stage = {
 };
 
 type DecisionLite = {
-  source?: string;
   verdict?: string;
   approval_state?: string;
 };
@@ -97,7 +96,7 @@ export function useFlowProgress() {
       body: "Once you have seen real verdicts, tighten thresholds, allowlists and enforcement. Every save is a new version.",
       cta: "Open policy",
       unlocked: runDone,
-      done: runDone && policyDone,
+      done: policyTuned,
       lockedHint: "Complete one live run first — tune the policy against real verdicts, not guesses.",
     },
   ];
