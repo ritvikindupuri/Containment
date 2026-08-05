@@ -145,6 +145,51 @@ export type Database = {
           },
         ]
       }
+      flow_sessions: {
+        Row: {
+          created_at: string
+          examples_run: number
+          id: string
+          ingested_at: string
+          is_current: boolean
+          live_run_done: boolean
+          local_id: string
+          plan: Json
+          policy_approved: boolean
+          policy_version: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          examples_run?: number
+          id?: string
+          ingested_at?: string
+          is_current?: boolean
+          live_run_done?: boolean
+          local_id: string
+          plan: Json
+          policy_approved?: boolean
+          policy_version?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          examples_run?: number
+          id?: string
+          ingested_at?: string
+          is_current?: boolean
+          live_run_done?: boolean
+          local_id?: string
+          plan?: Json
+          policy_approved?: boolean
+          policy_version?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       policies: {
         Row: {
           allowed_hosts: string[]
@@ -249,18 +294,21 @@ export type Database = {
           display_name: string | null
           email: string | null
           id: string
+          onboarded_at: string | null
         }
         Insert: {
           created_at?: string
           display_name?: string | null
           email?: string | null
           id: string
+          onboarded_at?: string | null
         }
         Update: {
           created_at?: string
           display_name?: string | null
           email?: string | null
           id?: string
+          onboarded_at?: string | null
         }
         Relationships: []
       }
