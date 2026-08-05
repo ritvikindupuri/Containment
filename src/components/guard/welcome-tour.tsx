@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { completeOnboarding, getOnboarding } from "@/lib/session.functions";
 import { ArrowLeft, ArrowRight, ShieldHalf } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const KEY = "containment.tour.v1";
 
 const SLIDES = [
   {
@@ -54,17 +55,26 @@ export function WelcomeTour() {
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
 
+  const fetchOnboarding = useServerFn(getOnboarding);
+  const markOnboarded = useServerFn(completeOnboarding);
+  const onboarding = useQuery({
+    queryKey: ["onboarding"],
+    queryFn: () => fetchOnboarding(),
+    staleTime: Infinity,
+  });
+
+  // The walkthrough is tied to the ACCOUNT, so a returning user who already
+  // finished setup never sees it again — on any browser or device.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!window.localStorage.getItem(KEY)) setOpen(true);
-  }, []);
+    if (onboarding.data && !onboarding.data.onboarded_at) setOpen(true);
+  }, [onboarding.data]);
 
   if (!open) return null;
   const slide = SLIDES[index]!;
   const last = index === SLIDES.length - 1;
 
   function finish() {
-    window.localStorage.setItem(KEY, new Date().toISOString());
+    void markOnboarded();
     setOpen(false);
     navigate({ to: "/console" });
   }
