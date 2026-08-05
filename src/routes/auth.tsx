@@ -37,6 +37,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -47,6 +48,7 @@ function AuthPage() {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
+    setFormError(null);
     try {
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
@@ -57,6 +59,7 @@ function AuthPage() {
         if (error) throw error;
         if (!data.session) {
           setPendingConfirm(true);
+          toast.success("Account created — confirm your email to continue.");
           return;
         }
         navigate({ to: destination, replace: true });
@@ -66,11 +69,14 @@ function AuthPage() {
         navigate({ to: destination, replace: true });
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Authentication failed");
+      const message = error instanceof Error ? error.message : "Authentication failed";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
   }
+
 
   async function google() {
     setBusy(true);
