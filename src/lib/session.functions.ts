@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const sessionInput = z.object({
   local_id: z.string().min(1),
-  plan: z.unknown(),
+  plan: z.record(z.string(), z.unknown()),
   policy_approved: z.boolean().default(false),
   policy_version: z.number().nullable().default(null),
   examples_run: z.number().default(0),
@@ -16,7 +16,7 @@ const idInput = z.object({ local_id: z.string().min(1) });
 
 export type FlowSessionRow = {
   local_id: string;
-  plan: unknown;
+  plan: Record<string, unknown>;
   policy_approved: boolean;
   policy_version: number | null;
   examples_run: number;
