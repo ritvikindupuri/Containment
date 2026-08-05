@@ -57,11 +57,14 @@ export function WelcomeTour() {
 
   const fetchOnboarding = useServerFn(getOnboarding);
   const markOnboarded = useServerFn(completeOnboarding);
+  const hasSession = useHasSession();
   const onboarding = useQuery({
     queryKey: ["onboarding"],
     queryFn: () => fetchOnboarding(),
     staleTime: Infinity,
+    enabled: hasSession === true,
   });
+
 
   // The walkthrough is tied to the ACCOUNT, so a returning user who already
   // finished setup never sees it again — on any browser or device.
