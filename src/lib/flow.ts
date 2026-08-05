@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listDecisions } from "@/lib/guard.functions";
 import { useRepoSession } from "@/lib/repo-session";
+import { useHasSession } from "@/lib/use-auth-session";
+
 
 /** The three stages of the app, in the order a company actually rolls this out. */
 export type StageKey = "setup" | "live_run" | "audit";
