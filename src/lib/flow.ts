@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listDecisions } from "@/lib/guard.functions";
 import { useRepoSession } from "@/lib/repo-session";
+import { useHasSession } from "@/lib/use-auth-session";
+
 
 /** The three stages of the app, in the order a company actually rolls this out. */
 export type StageKey = "setup" | "live_run" | "audit";
@@ -26,12 +28,15 @@ type DecisionLite = {
 
 export function useFlowProgress() {
   const fetchDecisions = useServerFn(listDecisions);
+  const hasSession = useHasSession();
   const decisions = useQuery({
     queryKey: ["decisions"],
     queryFn: () => fetchDecisions() as Promise<DecisionLite[]>,
     refetchInterval: 20_000,
+    enabled: hasSession === true,
   });
   const { session, loaded } = useRepoSession();
+
 
   const rows = decisions.data ?? [];
   const pendingApprovals = rows.filter((row) => row.approval_state === "pending").length;

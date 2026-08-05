@@ -2,6 +2,8 @@ import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import type { AgentRunPlan } from "@/lib/agent-run.functions";
+import { useHasSession } from "@/lib/use-auth-session";
+
 import {
   closeFlowSession,
   deleteFlowSession,
@@ -69,10 +71,13 @@ export function useRepoSession() {
   const removeFn = useServerFn(deleteFlowSession);
   const wipeFn = useServerFn(wipeFlowSessions);
 
+  const hasSession = useHasSession();
   const query = useQuery({
     queryKey: ["flow-sessions"],
     queryFn: () => fetchSessions() as Promise<FlowSessionRow[]>,
+    enabled: hasSession === true,
   });
+
 
   const rows = query.data ?? [];
   const history = rows.map(toSession).filter((entry): entry is RepoSession => entry !== null);
