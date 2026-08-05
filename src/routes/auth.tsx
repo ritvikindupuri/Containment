@@ -109,7 +109,19 @@ function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {pendingConfirm ? (
+              <div className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground">
+                Account created for <span className="font-medium">{email}</span>. Click the confirmation link in your
+                inbox, then sign in.
+              </div>
+            ) : null}
+            {formError ? (
+              <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </div>
+            ) : null}
             <form onSubmit={submit} className="space-y-4">
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
