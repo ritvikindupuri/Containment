@@ -192,7 +192,8 @@ export async function planAgentRun(context: RepoContext, excerpts: string): Prom
     method: "POST",
     headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "openai/gpt-5.6-sol",
+      reasoning_effort: "none",
       messages: [
         { role: "system", content: SYSTEM },
         {
