@@ -37,6 +37,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -47,6 +48,7 @@ function AuthPage() {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
+    setFormError(null);
     try {
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
@@ -57,6 +59,7 @@ function AuthPage() {
         if (error) throw error;
         if (!data.session) {
           setPendingConfirm(true);
+          toast.success("Account created — confirm your email to continue.");
           return;
         }
         navigate({ to: destination, replace: true });
@@ -66,11 +69,14 @@ function AuthPage() {
         navigate({ to: destination, replace: true });
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Authentication failed");
+      const message = error instanceof Error ? error.message : "Authentication failed";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
   }
+
 
   async function google() {
     setBusy(true);
@@ -103,7 +109,19 @@ function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {pendingConfirm ? (
+              <div className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground">
+                Account created for <span className="font-medium">{email}</span>. Click the confirmation link in your
+                inbox, then sign in.
+              </div>
+            ) : null}
+            {formError ? (
+              <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </div>
+            ) : null}
             <form onSubmit={submit} className="space-y-4">
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
