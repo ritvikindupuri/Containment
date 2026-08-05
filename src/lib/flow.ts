@@ -28,12 +28,15 @@ type DecisionLite = {
 
 export function useFlowProgress() {
   const fetchDecisions = useServerFn(listDecisions);
+  const hasSession = useHasSession();
   const decisions = useQuery({
     queryKey: ["decisions"],
     queryFn: () => fetchDecisions() as Promise<DecisionLite[]>,
     refetchInterval: 20_000,
+    enabled: hasSession === true,
   });
   const { session, loaded } = useRepoSession();
+
 
   const rows = decisions.data ?? [];
   const pendingApprovals = rows.filter((row) => row.approval_state === "pending").length;
