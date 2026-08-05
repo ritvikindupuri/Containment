@@ -49,7 +49,7 @@ function isUsable(value: unknown): value is RepoSession {
 function toSession(row: FlowSessionRow): RepoSession | null {
   const draft: RepoSession = {
     id: row.local_id,
-    plan: row.plan as unknown as AgentRunPlan,
+    plan: row.plan,
     policy_approved: row.policy_approved,
     policy_version: row.policy_version,
     examples_run: row.examples_run,
@@ -88,7 +88,7 @@ export function useRepoSession() {
       save({
         data: {
           local_id: input.id,
-          plan: input.plan as unknown as Record<string, unknown>,
+          plan: input.plan,
           policy_approved: input.policy_approved,
           policy_version: input.policy_version,
           examples_run: input.examples_run,
@@ -117,7 +117,7 @@ export function useRepoSession() {
       queryClient.setQueryData<FlowSessionRow[]>(["flow-sessions"], (prev) => [
         {
           local_id: draft.id,
-          plan: draft.plan as unknown as Record<string, unknown>,
+          plan: draft.plan,
           policy_approved: false,
           policy_version: null,
           examples_run: 0,

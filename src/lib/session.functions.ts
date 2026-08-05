@@ -1,10 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { AgentRunPlan } from "@/lib/agent-run.functions";
 
 const sessionInput = z.object({
   local_id: z.string().min(1),
-  plan: z.record(z.string(), z.unknown()),
+  plan: z.custom<AgentRunPlan>(),
   policy_approved: z.boolean().default(false),
   policy_version: z.number().nullable().default(null),
   examples_run: z.number().default(0),
@@ -16,7 +17,7 @@ const idInput = z.object({ local_id: z.string().min(1) });
 
 export type FlowSessionRow = {
   local_id: string;
-  plan: Record<string, unknown>;
+  plan: AgentRunPlan;
   policy_approved: boolean;
   policy_version: number | null;
   examples_run: number;
