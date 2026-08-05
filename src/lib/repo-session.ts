@@ -69,10 +69,13 @@ export function useRepoSession() {
   const removeFn = useServerFn(deleteFlowSession);
   const wipeFn = useServerFn(wipeFlowSessions);
 
+  const hasSession = useHasSession();
   const query = useQuery({
     queryKey: ["flow-sessions"],
     queryFn: () => fetchSessions() as Promise<FlowSessionRow[]>,
+    enabled: hasSession === true,
   });
+
 
   const rows = query.data ?? [];
   const history = rows.map(toSession).filter((entry): entry is RepoSession => entry !== null);
