@@ -103,6 +103,7 @@ To understand how Containment intercepts threats, consider a typical workflow wh
 
 ## Tech Stack
 
+* **AI & Planning Model**: [OpenAI GPT-5.6-sol](https://openai.com/) (integrated via the secure Lovable AI Gateway)
 * **Frontend Framework**: [React 19](https://react.dev/) with [TypeScript](https://www.typescriptlang.org/)
 * **Routing & Meta-framework**: [TanStack Start](https://tanstack.com/start/latest) / [TanStack React Router](https://tanstack.com/router/latest)
 * **CSS & Design**: [Tailwind CSS v4](https://tailwindcss.com/) with [Shadcn UI](https://ui.shadcn.com/) and [Lucide Icons](https://lucide.dev/)

@@ -48,7 +48,7 @@ Containment is built as a robust, high-performance web application and API platf
 * **Frontend**: React 19, TypeScript, Vite, Tailwind CSS (v4), and Radix UI primitives.
 * **Routing & Meta-framework**: TanStack React Router and TanStack React Start, facilitating highly responsive routing and seamless server-to-client server functions.
 * **Data Layer & Real-time Integration**: Supabase (PostgreSQL, Real-time Engine, Row-Level Security, and Auth).
-* **AI & Planning Engine**: Lovable AI Gateway connected to advanced OpenAI models for automated workspace mapping, policy suggestions, and intelligent human-in-the-loop review recommendations.
+* **AI & Planning Engine**: OpenAI GPT-5.6-sol integrated via the Lovable AI Gateway for automated workspace mapping, policy suggestions, and intelligent human-in-the-loop review recommendations.
 
 Unlike basic keyword-matching tools, Containment performs command normalization, path-traversal resolution, and context-aware injection scanning. It tracks policy version histories and records a tamper-proof audit trail of every single decision, ensuring compliance and deep operational visibility.
 
