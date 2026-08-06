@@ -53,7 +53,7 @@ graph TD
     FE --> |1. User requests/policy change| API
     P_AGENT --> |2. Proposed action payload| API
     API --> |3. Resolve security policies| GE
-    GE --> |4. Log verdict and payload| DB
+    API --> |4. Log verdict and payload| DB
     API --> |5. Verify credentials| AUTH
     DB --> |6. Populate real-time dashboard| FE
 ```

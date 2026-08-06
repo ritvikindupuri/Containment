@@ -152,7 +152,7 @@ graph TD
     end
 
     subgraph AI Planner [2. AI Planner & Synthesizer]
-        MODEL[Lovable AI Model / GPT-5]:::core
+        MODEL[Lovable AI Model / GPT-5.6-sol]:::core
         PLAN[Plan Synthesis: 10 Steps + 4 Examples]:::core
         SUGGESTION[Policy Suggester: Tailored Allow/Blocklists]:::core
     end
