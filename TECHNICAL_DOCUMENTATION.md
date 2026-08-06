@@ -362,8 +362,36 @@ The Supabase database layer consists of key tables configured with row-level sec
 * `reasons` (JSONB list of active findings)
 * `action` (JSONB complete proposed action)
 * `approval_state` (text - `none`, `pending`, `approved`, `rejected`)
-* `resolution_note` (text)
-* `resolved_at`, `created_at` (timestamps)
+* `review_recommendation` (text - `approve`, `reject`, or null)
+* `review_reasoning` (text, or null)
+* `review_conditions` (text, or null)
+* `reviewed_at` (timestamp, or null)
+* `resolution_note` (text, or null)
+* `resolved_at` (timestamp, or null)
+* `created_at` (timestamp)
+
+### `flow_sessions`
+Tracks user interaction status throughout the repository ingestion process and guided workspace simulator flow.
+* `id` (UUID, Primary Key)
+* `user_id` (UUID, references `auth.users`)
+* `local_id` (text - browser local reference ID)
+* `plan` (JSONB containing the AI-generated 10-step execution plan & repository metrics)
+* `policy_approved` (boolean - whether the suggested policy is approved)
+* `policy_version` (int, or null)
+* `examples_run` (int)
+* `live_run_done` (boolean)
+* `is_current` (boolean)
+* `ingested_at` (timestamp)
+* `created_at` (timestamp)
+* `updated_at` (timestamp)
+
+### `profiles`
+Tracks authenticated user account profiles.
+* `id` (UUID, Primary Key, references `auth.users`)
+* `display_name` (text, or null)
+* `email` (text, or null)
+* `onboarded_at` (timestamp, or null)
+* `created_at` (timestamp)
 
 ---
 
