@@ -440,3 +440,64 @@ export const getApproval = createServerFn({ method: "POST" })
     if (result.error) throw new Error(result.error.message);
     return result.data as ApprovalRow;
   });
+
+export type RiskAdviceRow = {
+  advisor_score: number;
+  advisor_level: "low" | "elevated" | "high" | "critical";
+  advisor_headline: string;
+  advisor_concerns: string[];
+  advisor_agrees: boolean;
+  advisor_at: string;
+};
+
+/**
+ * Advisory AI risk layer over one already-decided action. It never changes the
+ * verdict — the deterministic engine stays the enforcer — it only adds context.
+ */
+export const adviseOnDecision = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => ({ id: String(input?.id ?? "") }))
+  .handler(async ({ data, context }): Promise<RiskAdviceRow> => {
+    const found = await context.supabase
+      .from("decisions")
+      .select("id, agent_id, verdict, risk_score, reasons, action")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+    if (found.error) throw new Error(found.error.message);
+    const row = found.data as {
+      agent_id: string | null;
+      verdict: "allow" | "deny" | "needs_approval";
+      risk_score: number;
+      reasons: unknown;
+      action: unknown;
+    };
+
+    const policyRow = await ensurePolicy(context.supabase as AuthedSupabase, context.userId);
+    const { adviseOnRisk } = await import("@/lib/risk-advisor.server");
+    const advice = await adviseOnRisk({
+      action: row.action,
+      findings: Array.isArray(row.reasons) ? (row.reasons as never) : [],
+      policy: toPolicy(policyRow),
+      verdict: row.verdict,
+      risk_score: row.risk_score,
+      agent_id: row.agent_id,
+    });
+
+    const advisor_at = new Date().toISOString();
+    const saved = await context.supabase
+      .from("decisions")
+      .update({
+        advisor_score: advice.score,
+        advisor_level: advice.level,
+        advisor_headline: advice.headline,
+        advisor_concerns: advice.concerns,
+        advisor_agrees: advice.agrees,
+        advisor_at,
+      })
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
+    if (saved.error) throw new Error(saved.error.message);
+
+    return { ...advice, advisor_score: advice.score, advisor_level: advice.level, advisor_headline: advice.headline, advisor_concerns: advice.concerns, advisor_agrees: advice.agrees, advisor_at } as RiskAdviceRow;
+  });
