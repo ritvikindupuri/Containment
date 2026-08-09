@@ -22,6 +22,7 @@
    - [5.5 Policy Tuning & Version Control System](#55-policy-tuning-&-version-control-system)
    - [5.6 Human-in-the-Loop Approval Queue & AI Reviewer](#56-human-in-the-loop-approval-queue-&-ai-reviewer)
    - [5.7 Security Audit Log, Reporting & PDF Export](#57-security-audit-log-reporting-&-pdf-export)
+   - [5.8 Advisory AI Risk Layer](#58-advisory-ai-risk-layer)
 6. [Database Schema & Integration Details](#6-database-schema-&-integration-details)
 7. [Conclusion](#7-conclusion)
 
@@ -316,6 +317,23 @@ Containment offers comprehensive logging and export capabilities for security au
 
 ---
 
+### 5.8 Advisory AI Risk Layer
+
+Enforcement in Containment is deterministic by design: the same action, the same policy and the same rule set always produce the same verdict, in single-digit milliseconds, with an explainable rule id behind every decision. A model is never allowed to decide whether an action runs, because a model can be talked out of a decision by the very injected text it is inspecting.
+
+The advisory AI risk layer sits **on top of** that engine and adds the nuance rules cannot express, without ever touching the verdict.
+
+* **Implementation**: `src/lib/risk-advisor.server.ts` (`adviseOnRisk`) calls Lovable AI (`openai/gpt-5.6-sol`) with the proposed action, the deterministic findings, the verdict, the risk score and the workspace policy.
+* **Server boundary**: exposed as the authenticated server function `adviseOnDecision` in `src/lib/guard.functions.ts`. It is invoked explicitly by the operator, after the decision has already been made and logged — it is never in the enforcement path, so no AI call can delay or alter a block.
+* **Output**: an independent risk score (0-100), a level (`low` / `elevated` / `high` / `critical`), a one-sentence plain-English headline, 2-4 specific concerns, and an `agrees` flag stating whether the model's read matches the engine's verdict.
+* **Disagreement signal**: when `agrees` is `false`, the UI calls it out. That is the highest-value output of this layer — it points at a command that looks dangerous even though no rule fired (a candidate new rule), or a flagged action that is genuinely routine in this repo (a candidate allowlist entry).
+* **Persistence**: the read is written back onto the audit row (`advisor_*` columns), so the second opinion is part of the permanent record alongside the deterministic verdict.
+* **Surfaces**: the console policy test runner (`AiSecondOpinion` under each verdict) and every card in the approval queue.
+
+**Failure model**: rate limits (429), exhausted credits (402) and unparseable model output surface as inline errors on the card. The deterministic verdict is unaffected in every case — an unavailable AI layer degrades the product to "rule-based only", never to "unprotected".
+
+---
+
 ## 6. Database Schema & Integration Details
 
 The Supabase database layer consists of key tables configured with row-level security (RLS) to ensure multi-tenant security:
@@ -363,7 +381,12 @@ The Supabase database layer consists of key tables configured with row-level sec
 * `action` (JSONB complete proposed action)
 * `approval_state` (text - `none`, `pending`, `approved`, `rejected`)
 * `resolution_note` (text)
-* `resolved_at`, `created_at` (timestamps)
+* `advisor_score` (int - advisory AI risk estimate, 0-100)
+* `advisor_level` (text - `low`, `elevated`, `high`, `critical`)
+* `advisor_headline` (text - one-sentence plain-English summary)
+* `advisor_concerns` (JSONB list of specific concerns)
+* `advisor_agrees` (boolean - whether the AI read matches the deterministic verdict)
+* `resolved_at`, `advisor_at`, `created_at` (timestamps)
 
 ---
 
