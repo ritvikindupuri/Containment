@@ -11,8 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Finding, GuardResult } from "@/lib/guard/types";
+import { AiSecondOpinion } from "@/components/guard/ai-second-opinion";
 
 type TestResult = GuardResult & {
+  decision_id: string;
   policy_version: number;
   policy_name: string;
   thresholds: { deny: number; approval: number };
@@ -164,6 +166,7 @@ export function PolicyTestRunner() {
                 </div>
               ))
             )}
+            {result.decision_id ? <AiSecondOpinion decisionId={result.decision_id} /> : null}
             <div className="flex flex-wrap gap-2">
               <Button asChild size="sm" variant="outline">
                 <Link to="/dashboard">See it in the audit trail</Link>

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { RiskMeter } from "@/components/guard/verdict-badge";
 import { cn } from "@/lib/utils";
 import type { Finding } from "@/lib/guard/types";
+import { AiSecondOpinion } from "@/components/guard/ai-second-opinion";
 
 function actionLine(action: unknown): string {
   if (!action || typeof action !== "object") return "—";
@@ -127,6 +128,10 @@ export function ApprovalCard({
             hold in plain English. You still make the call.
           </p>
         )}
+      </div>
+
+      <div className="mt-3">
+        <AiSecondOpinion decisionId={current.id} />
       </div>
 
       {pending ? (

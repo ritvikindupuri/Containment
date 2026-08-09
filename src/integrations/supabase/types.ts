@@ -62,6 +62,12 @@ export type Database = {
         Row: {
           action: Json
           action_type: Database["public"]["Enums"]["guard_action_type"]
+          advisor_agrees: boolean | null
+          advisor_at: string | null
+          advisor_concerns: Json | null
+          advisor_headline: string | null
+          advisor_level: string | null
+          advisor_score: number | null
           agent_id: string | null
           api_key_id: string | null
           approval_state: string
@@ -85,6 +91,12 @@ export type Database = {
         Insert: {
           action?: Json
           action_type: Database["public"]["Enums"]["guard_action_type"]
+          advisor_agrees?: boolean | null
+          advisor_at?: string | null
+          advisor_concerns?: Json | null
+          advisor_headline?: string | null
+          advisor_level?: string | null
+          advisor_score?: number | null
           agent_id?: string | null
           api_key_id?: string | null
           approval_state?: string
@@ -108,6 +120,12 @@ export type Database = {
         Update: {
           action?: Json
           action_type?: Database["public"]["Enums"]["guard_action_type"]
+          advisor_agrees?: boolean | null
+          advisor_at?: string | null
+          advisor_concerns?: Json | null
+          advisor_headline?: string | null
+          advisor_level?: string | null
+          advisor_score?: number | null
           agent_id?: string | null
           api_key_id?: string | null
           approval_state?: string
