@@ -20,6 +20,22 @@ For a comprehensive technical deep-dive into the security models, core component
 
 ---
 
+## Sample Containment Report
+
+Curious to see what Containment's security evaluation and action-level audit logs look like in practice?
+
+We have compiled a comprehensive sample report demonstrating the security verdicts and simulation outcomes of our guardrail system:
+
+👉 **[View the Sample Containment PDF Report](./containment-report-ritvikindupuri-CIRRUS_Cloud_Audit-2026-08-05.pdf)**
+
+This sample audit report showcases:
+* **Interactive Run Statistics**: Overall risk mitigation ratios, total intercepted actions, and dynamic risk scores.
+* **Granular Action Logs**: Step-by-step evaluations of ordinary setup commands versus blocked sandbox-escape attempts.
+* **Deterministic Guard Verdicts**: Clear rule-by-rule breakdowns demonstrating how security policies are evaluated and enforced in real-time.
+* **Human-in-the-Loop Reviews**: Representative audit trails of manual approvals, rejections, and context-aware security resolutions.
+
+---
+
 ## System Architecture
 
 Containment uses a layered architecture to secure agent execution environments. The web application is built on TanStack React Start, and the core Guard Engine runs statelessly on an edge-ready Nitro server. The application state, policy parameters, and security logs are managed by Supabase PostgreSQL database tables.
