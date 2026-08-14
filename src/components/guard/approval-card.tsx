@@ -57,6 +57,8 @@ export function ApprovalCard({
   const findings = Array.isArray(current.reasons) ? (current.reasons as Finding[]) : [];
   const pending = current.approval_state === "pending";
   const approved = current.approval_state === "approved";
+  const [changing, setChanging] = useState(false);
+  const decideOpen = pending || changing;
 
   return (
     <div
