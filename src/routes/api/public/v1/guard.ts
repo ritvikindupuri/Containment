@@ -1,3 +1,4 @@
+import "@tanstack/react-start";
 import { createFileRoute } from "@tanstack/react-router";
 import { evaluateAction } from "@/lib/guard/engine";
 import { actionSchema } from "@/lib/guard/schemas";
