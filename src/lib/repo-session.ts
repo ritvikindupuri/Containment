@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import type { AgentRunPlan } from "@/lib/agent-run.functions";
@@ -81,8 +81,21 @@ export function useRepoSession() {
 
   const rows = query.data ?? [];
   const history = rows.map(toSession).filter((entry): entry is RepoSession => entry !== null);
-  const currentRow = rows.find((row) => row.is_current) ?? null;
+  // Rows arrive newest-first. If nothing is flagged current (e.g. a fresh
+  // sign-in after the tab was closed), resume the newest session the user did
+  // not deliberately archive, so setup is never repeated.
+  const resumable = rows.find((row) => !row.archived) ?? null;
+  const currentRow = rows.find((row) => row.is_current) ?? resumable;
   const session = currentRow ? toSession(currentRow) : null;
+
+  const resumedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const needsResume = currentRow && !currentRow.is_current;
+    if (!needsResume) return;
+    if (resumedRef.current === currentRow.local_id) return;
+    resumedRef.current = currentRow.local_id;
+    void restoreFn({ data: { local_id: currentRow.local_id } });
+  }, [currentRow, restoreFn]);
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["flow-sessions"] });
@@ -128,6 +141,7 @@ export function useRepoSession() {
           examples_run: 0,
           live_run_done: false,
           is_current: true,
+          archived: false,
           ingested_at: draft.ingested_at,
           updated_at: draft.updated_at,
         },
