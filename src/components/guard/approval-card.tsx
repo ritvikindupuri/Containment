@@ -104,12 +104,10 @@ export function ApprovalCard({
           <p className="flex items-center gap-2 text-sm font-medium">
             <Bot className="size-4 text-primary" /> AI reviewer
           </p>
-          {pending ? (
-            <Button size="sm" variant="outline" onClick={() => reviewMutation.mutate()} disabled={reviewMutation.isPending}>
-              {reviewMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4" />}
-              {current.reviewed_at ? "Review again" : "Ask the reviewer"}
-            </Button>
-          ) : null}
+          <Button size="sm" variant="outline" onClick={() => reviewMutation.mutate()} disabled={reviewMutation.isPending}>
+            {reviewMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4" />}
+            {current.reviewed_at ? "Review again" : "Ask the reviewer"}
+          </Button>
         </div>
         {current.reviewed_at ? (
           <div className="mt-2 space-y-1">
