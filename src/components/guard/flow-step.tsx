@@ -24,6 +24,7 @@ export function FlowStep({
 }) {
   return (
     <section
+      id={`step-${index}`}
       className={cn(
         "rounded-lg border bg-card transition-colors",
         locked ? "border-border/60 opacity-60" : done ? "border-success/40" : "border-border",
