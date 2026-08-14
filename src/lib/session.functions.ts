@@ -23,6 +23,7 @@ export type FlowSessionRow = {
   examples_run: number;
   live_run_done: boolean;
   is_current: boolean;
+  archived: boolean;
   ingested_at: string;
   updated_at: string;
 };
@@ -34,7 +35,7 @@ export const listFlowSessions = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("flow_sessions")
       .select(
-        "local_id, plan, policy_approved, policy_version, examples_run, live_run_done, is_current, ingested_at, updated_at",
+        "local_id, plan, policy_approved, policy_version, examples_run, live_run_done, is_current, archived, ingested_at, updated_at",
       )
       .eq("user_id", context.userId)
       .order("updated_at", { ascending: false });
@@ -64,6 +65,7 @@ export const saveFlowSession = createServerFn({ method: "POST" })
         examples_run: data.examples_run,
         live_run_done: data.live_run_done,
         is_current: true,
+        archived: false,
         ingested_at: data.ingested_at,
         updated_at: new Date().toISOString(),
       },
@@ -79,7 +81,7 @@ export const closeFlowSession = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { error } = await context.supabase
       .from("flow_sessions")
-      .update({ is_current: false })
+      .update({ is_current: false, archived: true })
       .eq("user_id", context.userId)
       .eq("is_current", true);
     if (error) throw new Error(error.message);
@@ -98,7 +100,7 @@ export const restoreFlowSession = createServerFn({ method: "POST" })
       .eq("is_current", true);
     const { error } = await context.supabase
       .from("flow_sessions")
-      .update({ is_current: true, updated_at: new Date().toISOString() })
+      .update({ is_current: true, archived: false, updated_at: new Date().toISOString() })
       .eq("user_id", context.userId)
       .eq("local_id", data.local_id);
     if (error) throw new Error(error.message);
