@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Bot, Check, Loader2, ShieldQuestion, X } from "lucide-react";
+import { Bot, Check, Loader2, RotateCcw, ShieldQuestion, X } from "lucide-react";
 import { reviewApproval, resolveApproval, type ApprovalRow } from "@/lib/guard.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,7 @@ export function ApprovalCard({
     onSuccess: (next) => {
       const value = next as ApprovalRow;
       setCurrent(value);
+      setChanging(false);
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
       queryClient.invalidateQueries({ queryKey: ["decisions"] });
       toast.success(value.approval_state === "approved" ? "Released — the agent may act." : "Held — the agent is blocked.");
