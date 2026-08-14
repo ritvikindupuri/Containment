@@ -134,7 +134,7 @@ export function ApprovalCard({
         <AiSecondOpinion decisionId={current.id} />
       </div>
 
-      {pending ? (
+      {decideOpen ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Input
             value={note}
@@ -144,7 +144,7 @@ export function ApprovalCard({
             className="max-w-sm"
           />
           <Button size="sm" onClick={() => resolveMutation.mutate("approved")} disabled={resolveMutation.isPending}>
-            <Check className="size-4" /> Release this action
+            <Check className="size-4" /> {pending ? "Release this action" : "Change to released"}
           </Button>
           <Button
             size="sm"
@@ -152,14 +152,24 @@ export function ApprovalCard({
             onClick={() => resolveMutation.mutate("rejected")}
             disabled={resolveMutation.isPending}
           >
-            <X className="size-4" /> Hold it
+            <X className="size-4" /> {pending ? "Hold it" : "Change to held"}
           </Button>
+          {changing ? (
+            <Button size="sm" variant="ghost" onClick={() => setChanging(false)}>
+              Keep current decision
+            </Button>
+          ) : null}
         </div>
       ) : (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {approved ? "Released" : "Held"} {current.resolved_at ? new Date(current.resolved_at).toLocaleString() : ""}
-          {current.resolution_note ? ` — “${current.resolution_note}”` : ""}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            {approved ? "Released" : "Held"} {current.resolved_at ? new Date(current.resolved_at).toLocaleString() : ""}
+            {current.resolution_note ? ` — “${current.resolution_note}”` : ""}
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setChanging(true)}>
+            <RotateCcw className="size-4" /> Change my decision
+          </Button>
+        </div>
       )}
     </div>
   );
