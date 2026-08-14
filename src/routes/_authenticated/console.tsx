@@ -224,6 +224,20 @@ function ConsolePage() {
   const activeKeys = (keys.data ?? []).filter((row) => !row.revoked_at);
   const keysDone = activeKeys.length > 0;
 
+  // Land the user on the step they actually need to do next (step 1 when the
+  // flow is fresh) instead of the top of a long page.
+  const activeStep = !repoDone ? 1 : !policyDone ? 2 : !examplesDone ? 3 : !runDone ? 4 : 5;
+  const scrolledRef = useRef(false);
+  useEffect(() => {
+    if (scrolledRef.current) return;
+    const target = document.getElementById(`step-${activeStep}`);
+    if (!target) return;
+    scrolledRef.current = true;
+    requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, [activeStep]);
+
+
+
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const keyValue = freshKey ?? "agk_live_your_key";
   const agentId = session ? `${session.plan.repo.owner}/${session.plan.repo.repo}` : "build-agent-7";
