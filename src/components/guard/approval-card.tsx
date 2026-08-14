@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Bot, Check, Loader2, ShieldQuestion, X } from "lucide-react";
+import { Bot, Check, Loader2, RotateCcw, ShieldQuestion, X } from "lucide-react";
 import { reviewApproval, resolveApproval, type ApprovalRow } from "@/lib/guard.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,7 @@ export function ApprovalCard({
     onSuccess: (next) => {
       const value = next as ApprovalRow;
       setCurrent(value);
+      setChanging(false);
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
       queryClient.invalidateQueries({ queryKey: ["decisions"] });
       toast.success(value.approval_state === "approved" ? "Released — the agent may act." : "Held — the agent is blocked.");
@@ -57,6 +58,8 @@ export function ApprovalCard({
   const findings = Array.isArray(current.reasons) ? (current.reasons as Finding[]) : [];
   const pending = current.approval_state === "pending";
   const approved = current.approval_state === "approved";
+  const [changing, setChanging] = useState(false);
+  const decideOpen = pending || changing;
 
   return (
     <div
@@ -102,12 +105,10 @@ export function ApprovalCard({
           <p className="flex items-center gap-2 text-sm font-medium">
             <Bot className="size-4 text-primary" /> AI reviewer
           </p>
-          {pending ? (
-            <Button size="sm" variant="outline" onClick={() => reviewMutation.mutate()} disabled={reviewMutation.isPending}>
-              {reviewMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4" />}
-              {current.reviewed_at ? "Review again" : "Ask the reviewer"}
-            </Button>
-          ) : null}
+          <Button size="sm" variant="outline" onClick={() => reviewMutation.mutate()} disabled={reviewMutation.isPending}>
+            {reviewMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4" />}
+            {current.reviewed_at ? "Review again" : "Ask the reviewer"}
+          </Button>
         </div>
         {current.reviewed_at ? (
           <div className="mt-2 space-y-1">
@@ -134,7 +135,7 @@ export function ApprovalCard({
         <AiSecondOpinion decisionId={current.id} />
       </div>
 
-      {pending ? (
+      {decideOpen ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Input
             value={note}
@@ -144,7 +145,7 @@ export function ApprovalCard({
             className="max-w-sm"
           />
           <Button size="sm" onClick={() => resolveMutation.mutate("approved")} disabled={resolveMutation.isPending}>
-            <Check className="size-4" /> Release this action
+            <Check className="size-4" /> {pending ? "Release this action" : "Change to released"}
           </Button>
           <Button
             size="sm"
@@ -152,14 +153,24 @@ export function ApprovalCard({
             onClick={() => resolveMutation.mutate("rejected")}
             disabled={resolveMutation.isPending}
           >
-            <X className="size-4" /> Hold it
+            <X className="size-4" /> {pending ? "Hold it" : "Change to held"}
           </Button>
+          {changing ? (
+            <Button size="sm" variant="ghost" onClick={() => setChanging(false)}>
+              Keep current decision
+            </Button>
+          ) : null}
         </div>
       ) : (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {approved ? "Released" : "Held"} {current.resolved_at ? new Date(current.resolved_at).toLocaleString() : ""}
-          {current.resolution_note ? ` — “${current.resolution_note}”` : ""}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            {approved ? "Released" : "Held"} {current.resolved_at ? new Date(current.resolved_at).toLocaleString() : ""}
+            {current.resolution_note ? ` — “${current.resolution_note}”` : ""}
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setChanging(true)}>
+            <RotateCcw className="size-4" /> Change my decision
+          </Button>
+        </div>
       )}
     </div>
   );
