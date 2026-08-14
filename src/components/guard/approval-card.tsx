@@ -136,32 +136,51 @@ export function ApprovalCard({
       </div>
 
       {decideOpen ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Input
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="Why? (optional, stored on the audit entry)"
-            maxLength={300}
-            className="max-w-sm"
-          />
-          <Button size="sm" onClick={() => resolveMutation.mutate("approved")} disabled={resolveMutation.isPending}>
-            <Check className="size-4" /> {pending ? "Release this action" : "Change to released"}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => resolveMutation.mutate("rejected")}
-            disabled={resolveMutation.isPending}
-          >
-            <X className="size-4" /> {pending ? "Hold it" : "Change to held"}
-          </Button>
-          {changing ? (
-            <Button size="sm" variant="ghost" onClick={() => setChanging(false)}>
-              Keep current decision
+        <div className="mt-3 space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Two options, and that's it:{" "}
+            <span className="text-success">release</span> lets the agent run this exact action, or{" "}
+            <span className="text-destructive">hold</span> keeps it blocked. The AI reads above are advice only — you
+            decide.
+            {!pending ? (
+              <>
+                {" "}
+                Current decision: <span className="text-foreground">{approved ? "released" : "held"}</span>.
+              </>
+            ) : null}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Why? (optional, stored on the audit entry)"
+              maxLength={300}
+              className="max-w-sm"
+            />
+            <Button
+              size="sm"
+              onClick={() => resolveMutation.mutate("approved")}
+              disabled={resolveMutation.isPending || (!pending && approved)}
+            >
+              <Check className="size-4" /> {pending ? "Release this action" : "Switch to release"}
             </Button>
-          ) : null}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => resolveMutation.mutate("rejected")}
+              disabled={resolveMutation.isPending || (!pending && !approved)}
+            >
+              <X className="size-4" /> {pending ? "Hold it" : "Switch to hold"}
+            </Button>
+            {changing ? (
+              <Button size="sm" variant="ghost" onClick={() => setChanging(false)}>
+                Keep current decision
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : (
+
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
             {approved ? "Released" : "Held"} {current.resolved_at ? new Date(current.resolved_at).toLocaleString() : ""}
