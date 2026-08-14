@@ -419,7 +419,7 @@ export const resolveApproval = createServerFn({ method: "POST" })
       })
       .eq("id", data.id)
       .eq("user_id", context.userId)
-      .eq("approval_state", "pending")
+      .in("approval_state", ["pending", "approved", "rejected"])
       .select(APPROVAL_COLUMNS)
       .single();
     if (updated.error) throw new Error(updated.error.message);
