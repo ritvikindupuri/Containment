@@ -4,28 +4,41 @@ import { evaluateAction } from "@/lib/guard/engine";
 import { actionSchema } from "@/lib/guard/schemas";
 import type { GuardAction, GuardPolicy } from "@/lib/guard/types";
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "content-type, authorization, x-guard-key",
-  "Content-Type": "application/json",
-};
+function getCorsHeaders(origin: string | null): HeadersInit {
+  const allowedOrigins = (import.meta.env.ALLOWED_ORIGINS ?? "").split(",").map((o) => o.trim()).filter(Boolean);
+  const allowOrigin = allowedOrigins.length > 0 && origin && allowedOrigins.includes(origin) ? origin : 
+                      allowedOrigins.length === 0 ? "*" : "null";
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: CORS });
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type, authorization, x-guard-key",
+    "Content-Type": "application/json",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+  };
+}
+
+function json(body: unknown, status = 200, origin: string | null = null) {
+  return new Response(JSON.stringify(body), { status, headers: getCorsHeaders(origin) });
 }
 
 export const Route = createFileRoute("/api/public/v1/guard")({
   server: {
     handlers: {
-      OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
+      OPTIONS: async ({ request }) => {
+        const origin = request.headers.get("origin");
+        return new Response(null, { status: 204, headers: getCorsHeaders(origin) });
+      },
       POST: async ({ request }) => {
+        const origin = request.headers.get("origin");
         const header =
           request.headers.get("x-guard-key") ??
           (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
         const presented = header.trim();
         if (!presented) {
-          return json({ error: "missing_key", message: "Send your key in the x-guard-key header." }, 401);
+          return json({ error: "missing_key", message: "Send your key in the x-guard-key header." }, 401, origin);
         }
 
         let parsed: GuardAction;
@@ -35,6 +48,7 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           return json(
             { error: "invalid_action", message: error instanceof Error ? error.message : "Invalid action payload." },
             400,
+            origin,
           );
         }
 
@@ -48,9 +62,9 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           .eq("key_hash", key_hash)
           .maybeSingle();
 
-        if (keyRow.error) return json({ error: "lookup_failed" }, 500);
+        if (keyRow.error) return json({ error: "lookup_failed" }, 500, origin);
         if (!keyRow.data || keyRow.data.revoked_at) {
-          return json({ error: "invalid_key", message: "Key is unknown or revoked." }, 401);
+          return json({ error: "invalid_key", message: "Key is unknown or revoked." }, 401, origin);
         }
 
         const policyQuery = supabaseAdmin
@@ -62,7 +76,7 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           : await policyQuery.order("created_at", { ascending: true }).limit(1).maybeSingle();
 
         if (policyRow.error || !policyRow.data) {
-          return json({ error: "no_policy", message: "No policy is configured for this key." }, 409);
+          return json({ error: "no_policy", message: "No policy is configured for this key." }, 409, origin);
         }
         const row = policyRow.data;
 
@@ -79,7 +93,37 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           approval_threshold: row.approval_threshold,
         };
 
-        const result = evaluateAction(parsed, policy);
+        let result;
+        try {
+          result = evaluateAction(parsed, policy);
+        } catch (error) {
+          // Fail closed: if evaluation throws, deny the action
+          await supabaseAdmin.from("decisions").insert({
+            user_id: keyRow.data.user_id,
+            policy_id: row.id,
+            policy_version: row.version,
+            api_key_id: keyRow.data.id,
+            agent_id: parsed.agent_id ?? null,
+            source: "api",
+            action_type: parsed.type,
+            verdict: "deny",
+            risk_score: 100,
+            enforced: true,
+            reasons: [{ rule: "EVAL_ERROR", title: "Evaluation error", detail: "Policy evaluation failed", score: 100 }],
+            action: JSON.parse(JSON.stringify(parsed)),
+            approval_state: "not_required",
+          });
+          return json({
+            verdict: "deny",
+            intended_verdict: "deny",
+            enforced: true,
+            risk_score: 100,
+            action_type: parsed.type,
+            summary: "Action denied due to evaluation error.",
+            findings: [{ rule: "EVAL_ERROR", vector: "shell", title: "Evaluation error", detail: "Policy engine encountered an error", score: 100, hard: true }],
+            policy_version: row.version,
+          }, 200, origin);
+        }
 
         await supabaseAdmin.from("decisions").insert({
           user_id: keyRow.data.user_id,
@@ -111,7 +155,7 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           summary: result.summary,
           findings: result.findings,
           policy_version: row.version,
-        });
+        }, 200, origin);
       },
     },
   },
