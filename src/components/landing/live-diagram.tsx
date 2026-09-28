@@ -1,5 +1,13 @@
 import { useMemo, useState } from "react";
-import { Bot, ShieldHalf, TerminalSquare, FolderLock, Network, Bug, ArrowRight } from "lucide-react";
+import {
+  Bot,
+  ShieldHalf,
+  TerminalSquare,
+  FolderLock,
+  Network,
+  Bug,
+  ArrowRight,
+} from "lucide-react";
 import { evaluateAction } from "@/lib/guard/engine";
 import { DEFAULT_POLICY, type GuardAction } from "@/lib/guard/types";
 import { cn } from "@/lib/utils";
@@ -118,7 +126,10 @@ export function LiveDiagram() {
         ))}
       </div>
 
-      <div key={sample.id} className="mt-6 grid animate-fade-in items-center gap-3 md:grid-cols-[1fr_auto_1fr]">
+      <div
+        key={sample.id}
+        className="mt-6 grid animate-fade-in items-center gap-3 md:grid-cols-[1fr_auto_1fr]"
+      >
         <div className="rounded-xl border border-border bg-surface/60 p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Bot className="size-4 text-muted-foreground" />
@@ -137,12 +148,7 @@ export function LiveDiagram() {
           />
         </div>
 
-        <div
-          className={cn(
-            "rounded-xl border p-4 transition-colors duration-300",
-            style.ring,
-          )}
-        >
+        <div className={cn("rounded-xl border p-4 transition-colors duration-300", style.ring)}>
           <div className="flex items-center gap-2">
             <span className={cn("size-2 rounded-full animate-pulse-dot", style.dot)} />
             <span className={cn("font-mono text-sm font-semibold tracking-wider", style.text)}>
@@ -162,7 +168,9 @@ export function LiveDiagram() {
         </div>
         <div className="space-y-1.5">
           {result.findings.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No rule matched — the action passes untouched.</p>
+            <p className="text-xs text-muted-foreground">
+              No rule matched — the action passes untouched.
+            </p>
           ) : (
             result.findings.slice(0, 3).map((finding) => (
               <div key={finding.rule} className="flex items-start gap-2 text-xs">

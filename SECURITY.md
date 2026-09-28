@@ -16,17 +16,21 @@ Containment is a security-focused firewall for AI agent actions. This document d
 ### API Security
 
 #### CORS Configuration
+
 - **Environment-driven allowlist**: CORS now respects `ALLOWED_ORIGINS` environment variable
 - **Development flexibility**: Empty `ALLOWED_ORIGINS` allows all origins (default for dev)
 - **Production lockdown**: Set `ALLOWED_ORIGINS` to a comma-separated list of approved origins for production deployments
 
 #### Security Headers
+
 All API responses now include:
+
 - `X-Content-Type-Options: nosniff` - Prevents MIME-type sniffing
 - `X-Frame-Options: DENY` - Prevents clickjacking
 - `Referrer-Policy: strict-origin-when-cross-origin` - Limits referrer information leakage
 
 #### Fail-Closed Behavior
+
 - **Policy evaluation errors**: If the policy engine throws an exception, the action is **automatically denied** (verdict: `deny`, risk_score: 100)
 - **Database errors**: API returns appropriate HTTP error codes without allowing actions through
 - **No silent failures**: All error paths are logged to the audit trail
@@ -34,7 +38,9 @@ All API responses now include:
 ### Database Security
 
 #### Row Level Security (RLS)
+
 All tables enforce RLS with user-scoped policies:
+
 - `profiles` - Users can only access their own profile
 - `policies` - Users can only access their own policies
 - `api_keys` - Users can only access their own API keys
@@ -43,6 +49,7 @@ All tables enforce RLS with user-scoped policies:
 - `flow_sessions` - Users can only access their own flow sessions
 
 #### Function Security
+
 - `handle_new_user()` - Runs as `SECURITY DEFINER` with controlled `search_path`
 - `touch_updated_at()` - Runs with `search_path = public` for safety
 - Both functions explicitly `REVOKE` permissions from `PUBLIC`, `anon`, and `authenticated` roles
@@ -50,7 +57,9 @@ All tables enforce RLS with user-scoped policies:
 ### Input Validation and Injection Prevention
 
 #### Policy Engine Protections
+
 The guard engine includes comprehensive detection for:
+
 - **Shell injection**: Reverse shells, command obfuscation, privilege escalation, credential harvesting
 - **Path traversal**: `..` sequences, URL encoding, symbolic link exploitation
 - **SSRF**: Cloud metadata endpoints (169.254.169.254, etc.), private IP ranges, DNS rebinding services
@@ -58,6 +67,7 @@ The guard engine includes comprehensive detection for:
 - **Encoding tricks**: Commands are normalized (unquoted, backslash-escaped) before pattern matching
 
 #### Input Sanitization
+
 - **Action schema validation**: All incoming actions are validated via Zod schemas before processing
 - **Type safety**: TypeScript enum for action types prevents case tricks
 - **Length limits**: All string fields have maximum length constraints (commands: 20KB, content: 200KB)
@@ -66,6 +76,7 @@ The guard engine includes comprehensive detection for:
 ### Frontend Security
 
 #### XSS Prevention
+
 - **No dangerous innerHTML**: The codebase uses React's safe rendering by default
 - **Single controlled exception**: `dangerouslySetInnerHTML` in `chart.tsx` is limited to CSS generation from a controlled config object (not user input)
 - **Type-safe templating**: React JSX prevents injection in dynamic content
@@ -101,6 +112,7 @@ The guard engine includes comprehensive detection for:
 ### Simulated Attack Scenarios
 
 This repository contains **simulated** attack examples for demonstration purposes only:
+
 - All attack patterns in the policy engine are for **detection**, not execution
 - Demo scenarios do not contain real exploit code
 - The system is designed to **block** these patterns, not enable them
@@ -122,6 +134,7 @@ If you discover a security vulnerability in Containment, please report it respon
 ### Scope
 
 **In scope:**
+
 - Authentication bypass
 - Authorization bypass (accessing other users' data)
 - SQL injection
@@ -131,6 +144,7 @@ If you discover a security vulnerability in Containment, please report it respon
 - Information disclosure
 
 **Out of scope:**
+
 - Social engineering
 - Physical attacks
 - Denial of service (unless critical)
@@ -158,6 +172,7 @@ If you discover a security vulnerability in Containment, please report it respon
 ## Compliance and Standards
 
 Containment follows security best practices aligned with:
+
 - OWASP Top 10 (Web Application Security)
 - OWASP API Security Top 10
 - CWE/SANS Top 25 Most Dangerous Software Weaknesses

@@ -73,9 +73,11 @@ Workspace policy: ${JSON.stringify(input.policy).slice(0, 3000)}`,
     }),
   });
 
-  if (res.status === 429) throw new Error("AI rate limit reached — try the risk read again in a moment.");
+  if (res.status === 429)
+    throw new Error("AI rate limit reached — try the risk read again in a moment.");
   if (res.status === 402) throw new Error("AI credits exhausted for this workspace.");
-  if (!res.ok) throw new Error(`Risk read failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok)
+    throw new Error(`Risk read failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
 
   const payload = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = payload.choices?.[0]?.message?.content ?? "";
@@ -90,7 +92,10 @@ Workspace policy: ${JSON.stringify(input.policy).slice(0, 3000)}`,
 
   const score = clampScore(parsed["score"]);
   const concerns = Array.isArray(parsed["concerns"])
-    ? (parsed["concerns"] as unknown[]).map((item) => String(item).slice(0, 300)).filter(Boolean).slice(0, 4)
+    ? (parsed["concerns"] as unknown[])
+        .map((item) => String(item).slice(0, 300))
+        .filter(Boolean)
+        .slice(0, 4)
     : [];
 
   return {

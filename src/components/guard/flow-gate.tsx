@@ -13,7 +13,11 @@ export function FlowGate({ stage, children }: { stage: StageKey; children: React
   const current = stageFor(stage);
 
   if (loading) {
-    return <p className="py-16 text-center text-sm text-muted-foreground">Checking where you are in the flow…</p>;
+    return (
+      <p className="py-16 text-center text-sm text-muted-foreground">
+        Checking where you are in the flow…
+      </p>
+    );
   }
   if (current.unlocked) return <>{children}</>;
 

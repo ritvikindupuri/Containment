@@ -92,7 +92,8 @@ export function PolicyTestRunner() {
       setResult(value as TestResult);
       queryClient.invalidateQueries({ queryKey: ["decisions"] });
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not evaluate that request"),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not evaluate that request"),
   });
 
   return (
@@ -103,8 +104,9 @@ export function PolicyTestRunner() {
           <FlaskConical className="size-4 text-primary" /> Paste a request, see why
         </CardTitle>
         <CardDescription>
-          Paste the exact JSON body your agent would send to <code>/api/public/v1/guard</code>. You get the verdict, the
-          rules that fired, the threshold arithmetic behind it, and the policy version used.
+          Paste the exact JSON body your agent would send to <code>/api/public/v1/guard</code>. You
+          get the verdict, the rules that fired, the threshold arithmetic behind it, and the policy
+          version used.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -152,9 +154,13 @@ export function PolicyTestRunner() {
               <p className="text-sm text-muted-foreground">No rule matched this request.</p>
             ) : (
               result.findings.map((finding: Finding, index: number) => (
-                <div key={`${finding.rule}-${index}`} className="border-l-2 border-border pl-3 text-sm">
+                <div
+                  key={`${finding.rule}-${index}`}
+                  className="border-l-2 border-border pl-3 text-sm"
+                >
                   <p className="font-medium">
-                    {finding.title} <span className="font-mono text-xs text-muted-foreground">{finding.rule}</span>
+                    {finding.title}{" "}
+                    <span className="font-mono text-xs text-muted-foreground">{finding.rule}</span>
                   </p>
                   <p className="text-muted-foreground">{finding.detail}</p>
                   {finding.evidence ? (
@@ -178,8 +184,8 @@ export function PolicyTestRunner() {
           </div>
         ) : (
           <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
-            The verdict and the reasoning behind it will appear here, and the run is written to your audit trail against
-            the policy version in force.
+            The verdict and the reasoning behind it will appear here, and the run is written to your
+            audit trail against the policy version in force.
           </p>
         )}
       </CardContent>

@@ -5,9 +5,16 @@ import { actionSchema } from "@/lib/guard/schemas";
 import type { GuardAction, GuardPolicy } from "@/lib/guard/types";
 
 function getCorsHeaders(origin: string | null): HeadersInit {
-  const allowedOrigins = (import.meta.env.ALLOWED_ORIGINS ?? "").split(",").map((o) => o.trim()).filter(Boolean);
-  const allowOrigin = allowedOrigins.length > 0 && origin && allowedOrigins.includes(origin) ? origin : 
-                      allowedOrigins.length === 0 ? "*" : "null";
+  const allowedOrigins = (import.meta.env.ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  const allowOrigin =
+    allowedOrigins.length > 0 && origin && allowedOrigins.includes(origin)
+      ? origin
+      : allowedOrigins.length === 0
+        ? "*"
+        : "null";
 
   return {
     "Access-Control-Allow-Origin": allowOrigin,
@@ -38,7 +45,11 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
         const presented = header.trim();
         if (!presented) {
-          return json({ error: "missing_key", message: "Send your key in the x-guard-key header." }, 401, origin);
+          return json(
+            { error: "missing_key", message: "Send your key in the x-guard-key header." },
+            401,
+            origin,
+          );
         }
 
         let parsed: GuardAction;
@@ -46,7 +57,10 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           parsed = actionSchema.parse(await request.json()) as GuardAction;
         } catch (error) {
           return json(
-            { error: "invalid_action", message: error instanceof Error ? error.message : "Invalid action payload." },
+            {
+              error: "invalid_action",
+              message: error instanceof Error ? error.message : "Invalid action payload.",
+            },
             400,
             origin,
           );
@@ -76,7 +90,11 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           : await policyQuery.order("created_at", { ascending: true }).limit(1).maybeSingle();
 
         if (policyRow.error || !policyRow.data) {
-          return json({ error: "no_policy", message: "No policy is configured for this key." }, 409, origin);
+          return json(
+            { error: "no_policy", message: "No policy is configured for this key." },
+            409,
+            origin,
+          );
         }
         const row = policyRow.data;
 
@@ -109,20 +127,40 @@ export const Route = createFileRoute("/api/public/v1/guard")({
             verdict: "deny",
             risk_score: 100,
             enforced: true,
-            reasons: [{ rule: "EVAL_ERROR", title: "Evaluation error", detail: "Policy evaluation failed", score: 100 }],
+            reasons: [
+              {
+                rule: "EVAL_ERROR",
+                title: "Evaluation error",
+                detail: "Policy evaluation failed",
+                score: 100,
+              },
+            ],
             action: JSON.parse(JSON.stringify(parsed)),
             approval_state: "not_required",
           });
-          return json({
-            verdict: "deny",
-            intended_verdict: "deny",
-            enforced: true,
-            risk_score: 100,
-            action_type: parsed.type,
-            summary: "Action denied due to evaluation error.",
-            findings: [{ rule: "EVAL_ERROR", vector: "shell", title: "Evaluation error", detail: "Policy engine encountered an error", score: 100, hard: true }],
-            policy_version: row.version,
-          }, 200, origin);
+          return json(
+            {
+              verdict: "deny",
+              intended_verdict: "deny",
+              enforced: true,
+              risk_score: 100,
+              action_type: parsed.type,
+              summary: "Action denied due to evaluation error.",
+              findings: [
+                {
+                  rule: "EVAL_ERROR",
+                  vector: "shell",
+                  title: "Evaluation error",
+                  detail: "Policy engine encountered an error",
+                  score: 100,
+                  hard: true,
+                },
+              ],
+              policy_version: row.version,
+            },
+            200,
+            origin,
+          );
         }
 
         await supabaseAdmin.from("decisions").insert({
@@ -146,16 +184,20 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           .update({ last_used_at: new Date().toISOString() })
           .eq("id", keyRow.data.id);
 
-        return json({
-          verdict: result.verdict,
-          intended_verdict: result.intended_verdict,
-          enforced: result.enforced,
-          risk_score: result.risk_score,
-          action_type: result.action_type,
-          summary: result.summary,
-          findings: result.findings,
-          policy_version: row.version,
-        }, 200, origin);
+        return json(
+          {
+            verdict: result.verdict,
+            intended_verdict: result.intended_verdict,
+            enforced: result.enforced,
+            risk_score: result.risk_score,
+            action_type: result.action_type,
+            summary: result.summary,
+            findings: result.findings,
+            policy_version: row.version,
+          },
+          200,
+          origin,
+        );
       },
     },
   },

@@ -2,7 +2,6 @@ import { z } from "zod";
 import { actionSchema } from "@/lib/guard/schemas";
 import { DEFAULT_POLICY, type ActionType } from "@/lib/guard/types";
 
-
 export type RepoContext = {
   owner: string;
   repo: string;
@@ -50,7 +49,10 @@ const INTERESTING = [
 ];
 
 export function parseRepoUrl(input: string): { owner: string; repo: string } {
-  const trimmed = input.trim().replace(/\.git$/, "").replace(/\/+$/, "");
+  const trimmed = input
+    .trim()
+    .replace(/\.git$/, "")
+    .replace(/\/+$/, "");
   const match = trimmed.match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/\s]+)\/([^/\s?#]+)/i);
   if (match) return { owner: match[1]!, repo: match[2]! };
   const short = trimmed.match(/^([\w.-]+)\/([\w.-]+)$/);
@@ -63,11 +65,14 @@ async function gh(path: string): Promise<Response> {
 }
 
 /** Clones the repo the cheap way: reads its real public metadata, file tree and setup files. */
-export async function fetchRepoContext(url: string): Promise<{ context: RepoContext; excerpts: string }> {
+export async function fetchRepoContext(
+  url: string,
+): Promise<{ context: RepoContext; excerpts: string }> {
   const { owner, repo } = parseRepoUrl(url);
 
   const metaRes = await gh(`/repos/${owner}/${repo}`);
-  if (metaRes.status === 404) throw new Error(`Repository ${owner}/${repo} was not found, or it is not public.`);
+  if (metaRes.status === 404)
+    throw new Error(`Repository ${owner}/${repo} was not found, or it is not public.`);
   if (!metaRes.ok) throw new Error(`GitHub returned ${metaRes.status} for ${owner}/${repo}.`);
   const meta = (await metaRes.json()) as {
     description: string | null;
@@ -80,7 +85,9 @@ export async function fetchRepoContext(url: string): Promise<{ context: RepoCont
   const tree = treeRes.ok
     ? ((await treeRes.json()) as { tree?: Array<{ path: string; type: string }> })
     : { tree: [] };
-  const paths = (tree.tree ?? []).filter((entry) => entry.type === "blob").map((entry) => entry.path);
+  const paths = (tree.tree ?? [])
+    .filter((entry) => entry.type === "blob")
+    .map((entry) => entry.path);
 
   const wanted = paths
     .filter((path) => {
@@ -184,7 +191,10 @@ function toSteps(raw: unknown, agentId: string, limit: number): PlannedStep[] {
   return steps;
 }
 
-export async function planAgentRun(context: RepoContext, excerpts: string): Promise<RepoSessionPlan> {
+export async function planAgentRun(
+  context: RepoContext,
+  excerpts: string,
+): Promise<RepoSessionPlan> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("AI is not configured for this project.");
 
@@ -214,7 +224,8 @@ ${excerpts || "(no setup files found)"}`,
 
   if (res.status === 429) throw new Error("AI rate limit reached — try again in a moment.");
   if (res.status === 402) throw new Error("AI credits exhausted for this workspace.");
-  if (!res.ok) throw new Error(`AI planning failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
+  if (!res.ok)
+    throw new Error(`AI planning failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
 
   const payload = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = payload.choices?.[0]?.message?.content ?? "";
@@ -229,7 +240,8 @@ ${excerpts || "(no setup files found)"}`,
 
   const agentId = `${context.owner}/${context.repo}`;
   const steps = toSteps(parsed.steps, agentId, 14);
-  if (steps.length === 0) throw new Error("The agent could not derive any actions from this repository.");
+  if (steps.length === 0)
+    throw new Error("The agent could not derive any actions from this repository.");
 
   const examples = toSteps(parsed.examples, agentId, 6);
   const suggested = policySuggestionSchema.safeParse(parsed.policy ?? {});
@@ -240,7 +252,9 @@ ${excerpts || "(no setup files found)"}`,
     examples: examples.length ? examples : steps.slice(0, 4),
     policy: {
       ...policy,
-      allowed_hosts: policy.allowed_hosts.length ? policy.allowed_hosts : DEFAULT_POLICY.allowed_hosts,
+      allowed_hosts: policy.allowed_hosts.length
+        ? policy.allowed_hosts
+        : DEFAULT_POLICY.allowed_hosts,
       allowed_write_paths: policy.allowed_write_paths.length
         ? policy.allowed_write_paths
         : DEFAULT_POLICY.allowed_write_paths,
@@ -253,4 +267,3 @@ ${excerpts || "(no setup files found)"}`,
     },
   };
 }
-

@@ -25,12 +25,14 @@ export function ApprovalQueue() {
           <ShieldQuestion className="size-4 text-warning" />
           Approval queue
           {pending.length ? (
-            <span className="rounded-full bg-warning/20 px-2 font-mono text-xs text-warning">{pending.length}</span>
+            <span className="rounded-full bg-warning/20 px-2 font-mono text-xs text-warning">
+              {pending.length}
+            </span>
           ) : null}
         </CardTitle>
         <CardDescription>
-          Actions your policy would not decide alone. Run the AI reviewer on one, then release it or hold it — your call
-          is written onto the audit entry.
+          Actions your policy would not decide alone. Run the AI reviewer on one, then release it or
+          hold it — your call is written onto the audit entry.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -38,7 +40,8 @@ export function ApprovalQueue() {
           <p className="py-6 text-center text-sm text-muted-foreground">Loading the queue…</p>
         ) : rows.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            Nothing needs approval. Actions land here when they are risky enough to pause but not to block outright.
+            Nothing needs approval. Actions land here when they are risky enough to pause but not to
+            block outright.
           </p>
         ) : (
           <>

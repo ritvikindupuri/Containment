@@ -58,9 +58,12 @@ function verdictColor(verdict: Verdict) {
 
 function actionLine(action: AgentRunPlan["steps"][number]["action"]): string {
   if (action.type === "shell") return action.command ?? "";
-  if (action.type === "network") return `${action.url ?? ""}${action.body ? `  body: ${action.body}` : ""}`;
-  if (action.type === "tool_call") return `${action.tool ?? ""}(${JSON.stringify(action.args ?? {})})`;
-  if (action.type === "file_write") return `${action.path ?? ""}${action.content ? `  <- ${action.content}` : ""}`;
+  if (action.type === "network")
+    return `${action.url ?? ""}${action.body ? `  body: ${action.body}` : ""}`;
+  if (action.type === "tool_call")
+    return `${action.tool ?? ""}(${JSON.stringify(action.args ?? {})})`;
+  if (action.type === "file_write")
+    return `${action.path ?? ""}${action.content ? `  <- ${action.content}` : ""}`;
   return action.path ?? "";
 }
 
@@ -103,7 +106,11 @@ class Doc {
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(7.5);
     pdf.setTextColor(...MUTED);
-    pdf.text(`Containment — agent containment report · ${this.repo} · ${this.reportId}`, MARGIN, PAGE_H - MARGIN);
+    pdf.text(
+      `Containment — agent containment report · ${this.repo} · ${this.reportId}`,
+      MARGIN,
+      PAGE_H - MARGIN,
+    );
     pdf.text(`Page ${this.page}`, PAGE_W - MARGIN, PAGE_H - MARGIN, { align: "right" });
   }
 
@@ -125,7 +132,10 @@ class Doc {
     this.y += 16;
   }
 
-  paragraph(text: string, options?: { size?: number; muted?: boolean; indent?: number; bold?: boolean }) {
+  paragraph(
+    text: string,
+    options?: { size?: number; muted?: boolean; indent?: number; bold?: boolean },
+  ) {
     const size = options?.size ?? 9.5;
     const indent = options?.indent ?? 0;
     const pdf = this.pdf;
@@ -145,7 +155,10 @@ class Doc {
     pdf.setFont("courier", "normal");
     pdf.setFontSize(8);
     pdf.setTextColor(...INK);
-    const lines = (pdf.splitTextToSize(text || "—", CONTENT_W - indent - 16) as string[]).slice(0, 8);
+    const lines = (pdf.splitTextToSize(text || "—", CONTENT_W - indent - 16) as string[]).slice(
+      0,
+      8,
+    );
     const height = lines.length * 10 + 10;
     this.ensure(height);
     pdf.setFillColor(...PANEL);
@@ -200,7 +213,9 @@ export function buildRunReport(input: RunReportInput): { blob: Blob; filename: s
   const blocked = entries.filter((e) => e.result.verdict === "deny").length;
   const held = entries.filter((e) => e.result.verdict === "needs_approval").length;
   const allowed = entries.filter((e) => e.result.verdict === "allow").length;
-  const escaped = entries.filter((e) => !e.result.enforced && e.result.intended_verdict !== "allow").length;
+  const escaped = entries.filter(
+    (e) => !e.result.enforced && e.result.intended_verdict !== "allow",
+  ).length;
   const risky = entries.filter((e) => e.result.intended_verdict !== "allow").length;
   const sealed = escaped === 0;
   const notRun = plan.steps.length - entries.length;
@@ -236,7 +251,9 @@ export function buildRunReport(input: RunReportInput): { blob: Blob; filename: s
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(9);
   ink(pdf, sealed ? [140, 220, 170] : [240, 150, 150]);
-  pdf.text(sealed ? "SANDBOX SEALED" : "ESCAPE GOT THROUGH", PAGE_W - MARGIN, 76, { align: "right" });
+  pdf.text(sealed ? "SANDBOX SEALED" : "ESCAPE GOT THROUGH", PAGE_W - MARGIN, 76, {
+    align: "right",
+  });
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);
   pdf.setTextColor(196, 198, 204);
@@ -261,7 +278,10 @@ export function buildRunReport(input: RunReportInput): { blob: Blob; filename: s
       "Policy in force",
       `version ${input.policyVersion ?? "—"} · ${input.policyMode === "monitor" ? "monitor (log only)" : "enforce (blocking)"}`,
     ],
-    ["Actions evaluated", `${entries.length} of ${plan.steps.length}${notRun ? ` (${notRun} not reached)` : ""}`],
+    [
+      "Actions evaluated",
+      `${entries.length} of ${plan.steps.length}${notRun ? ` (${notRun} not reached)` : ""}`,
+    ],
   ]);
 
   /* ---------- Executive summary ---------- */
@@ -336,18 +356,32 @@ export function buildRunReport(input: RunReportInput): { blob: Blob; filename: s
   /* ---------- Policy of record ---------- */
   doc.heading("Policy applied during this run");
   doc.keyValues([
-    ["Enforcement mode", input.policyMode === "monitor" ? "Monitor — verdicts logged, nothing blocked" : "Enforce — denied actions are stopped"],
+    [
+      "Enforcement mode",
+      input.policyMode === "monitor"
+        ? "Monitor — verdicts logged, nothing blocked"
+        : "Enforce — denied actions are stopped",
+    ],
     ["Policy version", input.policyVersion ? `v${input.policyVersion}` : "—"],
     ["Deny threshold", `${plan.policy.deny_threshold}/100 risk and above is blocked`],
     ["Approval threshold", `${plan.policy.approval_threshold}/100 risk and above needs a human`],
     ["Vectors guarded", vectorList(plan)],
-    ["Allowed egress hosts", plan.policy.allowed_hosts.join(", ") || "none — all outbound calls are flagged"],
-    ["Writable roots", plan.policy.allowed_write_paths.join(", ") || "none — all writes are flagged"],
+    [
+      "Allowed egress hosts",
+      plan.policy.allowed_hosts.join(", ") || "none — all outbound calls are flagged",
+    ],
+    [
+      "Writable roots",
+      plan.policy.allowed_write_paths.join(", ") || "none — all writes are flagged",
+    ],
     ["Approval-gated tools", plan.policy.approval_required_tools.join(", ") || "none"],
   ]);
   if (plan.policy.rationale) {
     doc.space(4);
-    doc.paragraph(`Rationale for this repository: ${plan.policy.rationale}`, { size: 8.5, muted: true });
+    doc.paragraph(`Rationale for this repository: ${plan.policy.rationale}`, {
+      size: 8.5,
+      muted: true,
+    });
   }
 
   /* ---------- Audit trail summary table ---------- */
@@ -419,8 +453,14 @@ export function buildRunReport(input: RunReportInput): { blob: Blob; filename: s
           { size: 8.5, bold: true, indent: 12 },
         );
         doc.paragraph(finding.detail, { size: 8.5, muted: true, indent: 22 });
-        if (finding.evidence) doc.paragraph(`Evidence: ${finding.evidence}`, { size: 8, muted: true, indent: 22 });
-        if (finding.remediation) doc.paragraph(`Remediation: ${finding.remediation}`, { size: 8, muted: true, indent: 22 });
+        if (finding.evidence)
+          doc.paragraph(`Evidence: ${finding.evidence}`, { size: 8, muted: true, indent: 22 });
+        if (finding.remediation)
+          doc.paragraph(`Remediation: ${finding.remediation}`, {
+            size: 8,
+            muted: true,
+            indent: 22,
+          });
       });
     }
     if (entry.result.decision_id) {
@@ -509,7 +549,10 @@ function drawTableRow(
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);
   const title = pdf.splitTextToSize(entry.step.title, COLS[1]! - 8) as string[];
-  const detail = pdf.splitTextToSize(actionLine(entry.step.action) || "—", COLS[1]! - 8) as string[];
+  const detail = pdf.splitTextToSize(
+    actionLine(entry.step.action) || "—",
+    COLS[1]! - 8,
+  ) as string[];
   const lines = [...title.slice(0, 2), ...detail.slice(0, 2)];
   const height = Math.max(22, lines.length * 10 + 8);
 

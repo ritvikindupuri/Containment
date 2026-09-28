@@ -20,9 +20,15 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign in — Containment agent firewall" },
-      { name: "description", content: "Sign in to manage guard policies, agent keys, and the containment audit trail." },
+      {
+        name: "description",
+        content: "Sign in to manage guard policies, agent keys, and the containment audit trail.",
+      },
       { property: "og:title", content: "Sign in — Containment" },
-      { property: "og:description", content: "Manage guard policies, agent keys, and the containment audit trail." },
+      {
+        property: "og:description",
+        content: "Manage guard policies, agent keys, and the containment audit trail.",
+      },
     ],
   }),
   component: AuthPage,
@@ -77,11 +83,13 @@ function AuthPage() {
     }
   }
 
-
   async function google() {
     setBusy(true);
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/auth" + (redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""),
+      redirect_uri:
+        window.location.origin +
+        "/auth" +
+        (redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""),
     });
     if (result.error) {
       toast.error("Google sign-in failed");
@@ -111,8 +119,8 @@ function AuthPage() {
           <CardContent className="space-y-4">
             {pendingConfirm ? (
               <div className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground">
-                Account created for <span className="font-medium">{email}</span>. Click the confirmation link in your
-                inbox, then sign in.
+                Account created for <span className="font-medium">{email}</span>. Click the
+                confirmation link in your inbox, then sign in.
               </div>
             ) : null}
             {formError ? (
@@ -121,7 +129,6 @@ function AuthPage() {
               </div>
             ) : null}
             <form onSubmit={submit} className="space-y-4">
-
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
