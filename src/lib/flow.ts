@@ -4,7 +4,6 @@ import { listDecisions } from "@/lib/guard.functions";
 import { useRepoSession } from "@/lib/repo-session";
 import { useHasSession } from "@/lib/use-auth-session";
 
-
 /** The three stages of the app, in the order a company actually rolls this out. */
 export type StageKey = "setup" | "live_run" | "audit";
 
@@ -37,7 +36,6 @@ export function useFlowProgress() {
   });
   const { session, loaded } = useRepoSession();
 
-
   const rows = decisions.data ?? [];
   const pendingApprovals = rows.filter((row) => row.approval_state === "pending").length;
   const resolvedApprovals = rows.filter(
@@ -52,8 +50,6 @@ export function useFlowProgress() {
   const setupDone = repoDone && policyDone && examplesDone;
   const runDone = setupDone && Boolean(session?.live_run_done);
   const auditDone = runDone && (pendingApprovals === 0 || resolvedApprovals > 0);
-  
-
 
   const stages: Stage[] = [
     {
@@ -78,7 +74,8 @@ export function useFlowProgress() {
       cta: "Open live run",
       unlocked: setupDone,
       done: runDone,
-      lockedHint: "Finish setup first: ingest a repo, approve its policy and run one suggested action.",
+      lockedHint:
+        "Finish setup first: ingest a repo, approve its policy and run one suggested action.",
     },
     {
       key: "audit",

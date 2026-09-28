@@ -44,18 +44,64 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+function addSecurityHeaders(response: Response): Response {
+  const isProduction =
+    (typeof process !== "undefined" && process.env.VITE_SUPABASE_URL?.includes(".supabase.co")) ??
+    false;
+
+  const headers = new Headers(response.headers);
+
+  // Security headers for all responses
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("X-Frame-Options", "DENY");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  headers.set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
+  headers.set("Cross-Origin-Opener-Policy", "same-origin");
+
+  // HSTS only in production
+  if (isProduction) {
+    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  }
+
+  // CSP for HTML responses
+  const contentType = headers.get("content-type") ?? "";
+  if (contentType.includes("text/html")) {
+    const cspDirectives = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval needed for Vite dev
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: https:",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+    ];
+    headers.set("Content-Security-Policy", cspDirectives.join("; "));
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalizedResponse = await normalizeCatastrophicSsrResponse(response);
+      return addSecurityHeaders(normalizedResponse);
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
+      const errorResponse = new Response(renderErrorPage(), {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },
       });
+      return addSecurityHeaders(errorResponse);
     }
   },
 };

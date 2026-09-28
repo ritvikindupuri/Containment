@@ -40,7 +40,8 @@ function isUsable(value: unknown): value is RepoSession {
   const session = value as RepoSession;
   const plan = session.plan as AgentRunPlan | undefined;
   if (!plan || typeof plan !== "object") return false;
-  if (!plan.repo || typeof plan.repo !== "object" || !plan.repo.owner || !plan.repo.repo) return false;
+  if (!plan.repo || typeof plan.repo !== "object" || !plan.repo.owner || !plan.repo.repo)
+    return false;
   if (!Array.isArray(plan.steps) || plan.steps.length === 0) return false;
   if (!Array.isArray(plan.examples)) return false;
   if (!plan.policy || typeof plan.policy !== "object") return false;
@@ -77,7 +78,6 @@ export function useRepoSession() {
     queryFn: () => fetchSessions() as Promise<FlowSessionRow[]>,
     enabled: hasSession === true,
   });
-
 
   const rows = query.data ?? [];
   const history = rows.map(toSession).filter((entry): entry is RepoSession => entry !== null);

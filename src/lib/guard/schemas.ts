@@ -1,17 +1,41 @@
 import { z } from "zod";
 
-export const actionSchema = z.object({
-  type: z.enum(["shell", "file_read", "file_write", "network", "tool_call"]),
-  command: z.string().max(20_000).optional(),
-  path: z.string().max(4_000).optional(),
-  content: z.string().max(200_000).optional(),
-  url: z.string().max(4_000).optional(),
-  body: z.string().max(200_000).optional(),
-  tool: z.string().max(200).optional(),
-  args: z.record(z.unknown()).optional(),
-  untrusted_context: z.string().max(200_000).optional(),
-  agent_id: z.string().max(200).optional(),
-});
+export const actionSchema = z
+  .object({
+    type: z.enum(["shell", "file_read", "file_write", "network", "tool_call"]),
+    command: z
+      .string()
+      .max(20_000)
+      .optional()
+      .transform((val) => val?.trim()),
+    path: z
+      .string()
+      .max(4_000)
+      .optional()
+      .transform((val) => val?.trim()),
+    content: z.string().max(200_000).optional(),
+    url: z
+      .string()
+      .max(4_000)
+      .optional()
+      .transform((val) => val?.trim()),
+    body: z.string().max(200_000).optional(),
+    tool: z
+      .string()
+      .max(200)
+      .optional()
+      .transform((val) => val?.trim()),
+    args: z.record(z.unknown()).optional(),
+    // untrusted_context should contain any LLM-ingested content that might contain prompt injection
+    // This helps the engine detect when untrusted input is driving tool calls
+    untrusted_context: z.string().max(200_000).optional(),
+    agent_id: z
+      .string()
+      .max(200)
+      .optional()
+      .transform((val) => val?.trim()),
+  })
+  .strict(); // Reject unknown properties
 
 export type ActionInput = z.infer<typeof actionSchema>;
 

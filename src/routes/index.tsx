@@ -27,7 +27,8 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "Containment — stop AI agent sandbox escapes" },
       {
         property: "og:description",
-        content: "Policy-enforced allow / hold / deny decisions for every action your AI agents propose.",
+        content:
+          "Policy-enforced allow / hold / deny decisions for every action your AI agents propose.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -37,17 +38,49 @@ export const Route = createFileRoute("/")({
 });
 
 const VECTORS = [
-  { icon: TerminalSquare, title: "Command execution", body: "Reverse shells, curl-to-bash, container escapes." },
-  { icon: FolderLock, title: "Filesystem breakout", body: "Traversal, SSH keys, .env, writes outside the jail." },
-  { icon: Network, title: "Network exfiltration", body: "Cloud metadata, loopback, encoded hosts, secrets in payloads." },
-  { icon: Bug, title: "Prompt injection", body: "Overrides in ingested text that drive state-changing tools." },
+  {
+    icon: TerminalSquare,
+    title: "Command execution",
+    body: "Reverse shells, curl-to-bash, container escapes.",
+  },
+  {
+    icon: FolderLock,
+    title: "Filesystem breakout",
+    body: "Traversal, SSH keys, .env, writes outside the jail.",
+  },
+  {
+    icon: Network,
+    title: "Network exfiltration",
+    body: "Cloud metadata, loopback, encoded hosts, secrets in payloads.",
+  },
+  {
+    icon: Bug,
+    title: "Prompt injection",
+    body: "Overrides in ingested text that drive state-changing tools.",
+  },
 ];
 
 const STEPS = [
-  { icon: GitBranch, title: "Point it at a repo", body: "Containment reads the code and drafts the policy." },
-  { icon: Shield, title: "Watch a live run", body: "A real agent run, every action judged as it happens." },
-  { icon: ScrollText, title: "Review the trail", body: "Every verdict, rule and policy version, exportable as PDF." },
-  { icon: PlugZap, title: "Connect production", body: "One HTTP call in front of your real agent's tools." },
+  {
+    icon: GitBranch,
+    title: "Point it at a repo",
+    body: "Containment reads the code and drafts the policy.",
+  },
+  {
+    icon: Shield,
+    title: "Watch a live run",
+    body: "A real agent run, every action judged as it happens.",
+  },
+  {
+    icon: ScrollText,
+    title: "Review the trail",
+    body: "Every verdict, rule and policy version, exportable as PDF.",
+  },
+  {
+    icon: PlugZap,
+    title: "Connect production",
+    body: "One HTTP call in front of your real agent's tools.",
+  },
 ];
 
 function Landing() {
@@ -86,7 +119,8 @@ function Landing() {
               <span className="block text-primary">The escape never runs.</span>
             </h1>
             <p className="mt-5 max-w-lg text-lg text-muted-foreground">
-              One call before every command, file, request and tool call — answered with allow, hold or deny.
+              One call before every command, file, request and tool call — answered with allow, hold
+              or deny.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg">

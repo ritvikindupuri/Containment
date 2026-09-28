@@ -83,7 +83,8 @@ const SHELL_PATTERNS: Pattern[] = [
     rule: "SHELL_REVERSE_SHELL",
     re: /(\/dev\/tcp\/[\d.a-z-]+\/\d+|\bnc\b[^\n|;]*\s-[a-z]*e\b|\bncat\b[^\n]*--exec|socat[^\n]*exec:|bash\s+-i\s*>&|sh\s+-i\s*>&)/i,
     title: "Reverse shell",
-    detail: "The command opens an interactive shell back to a remote listener — the classic sandbox breakout.",
+    detail:
+      "The command opens an interactive shell back to a remote listener — the classic sandbox breakout.",
     score: 100,
     hard: true,
   },
@@ -91,7 +92,8 @@ const SHELL_PATTERNS: Pattern[] = [
     rule: "SHELL_PIPE_TO_INTERPRETER",
     re: /\b(curl|wget|fetch)\b[^\n|;]*\|\s*(sudo\s+)?(ba|z|k|d)?sh\b|\|\s*python[23]?\b|\|\s*node\b/i,
     title: "Remote code piped into an interpreter",
-    detail: "Downloaded bytes are executed directly, so nothing about the payload is reviewable before it runs.",
+    detail:
+      "Downloaded bytes are executed directly, so nothing about the payload is reviewable before it runs.",
     score: 85,
     hard: true,
     remediation: "Download to a file, hash it, review it, then execute explicitly.",
@@ -100,7 +102,8 @@ const SHELL_PATTERNS: Pattern[] = [
     rule: "SHELL_CONTAINER_ESCAPE",
     re: /(nsenter\b|\/proc\/1\/(root|ns)|--privileged\b|-v\s*\/:\/|--pid=host|--net=host|capsh\s+--|\/var\/run\/docker\.sock|release_agent|chroot\s+\/proc)/i,
     title: "Container / namespace escape",
-    detail: "The command reaches for host namespaces, the host root, or the container runtime socket.",
+    detail:
+      "The command reaches for host namespaces, the host root, or the container runtime socket.",
     score: 100,
     hard: true,
   },
@@ -206,7 +209,8 @@ function evaluateShell(action: GuardAction): Finding[] {
       rule: "SHELL_QUOTE_EVASION",
       vector: "shell",
       title: "Quote/escape evasion",
-      detail: "The command only matched a dangerous pattern after unquoting, which indicates deliberate filter evasion.",
+      detail:
+        "The command only matched a dangerous pattern after unquoting, which indicates deliberate filter evasion.",
       score: 25,
       hard: false,
     });
@@ -218,7 +222,13 @@ function evaluateShell(action: GuardAction): Finding[] {
 /* filesystem                                                          */
 /* ------------------------------------------------------------------ */
 
-const SENSITIVE_PATH_RULES: { re: RegExp; rule: string; title: string; detail: string; score: number }[] = [
+const SENSITIVE_PATH_RULES: {
+  re: RegExp;
+  rule: string;
+  title: string;
+  detail: string;
+  score: number;
+}[] = [
   {
     re: /^\/(etc\/(shadow|passwd|sudoers)|root\/)/,
     rule: "FS_SYSTEM_SECRET",
@@ -279,7 +289,8 @@ function evaluateFilesystem(action: GuardAction, policy: GuardPolicy): Finding[]
       score: 70,
       hard: true,
       evidence: raw.slice(0, 160),
-      remediation: "Resolve the path and reject anything outside the jail before touching the filesystem.",
+      remediation:
+        "Resolve the path and reject anything outside the jail before touching the filesystem.",
     });
   }
 
@@ -320,7 +331,8 @@ function evaluateFilesystem(action: GuardAction, policy: GuardPolicy): Finding[]
         score: 65,
         hard: true,
         evidence: normalized,
-        remediation: "Add the root to the policy if this location is genuinely part of the agent's workspace.",
+        remediation:
+          "Add the root to the policy if this location is genuinely part of the agent's workspace.",
       });
     }
   }
@@ -416,25 +428,39 @@ function evaluateNetwork(action: GuardAction, policy: GuardPolicy): Finding[] {
       rule: "NET_DANGEROUS_SCHEME",
       vector: "network",
       title: `Non-HTTP scheme (${scheme})`,
-      detail: "file://, gopher://, dict:// and friends are used to read local files or pivot into internal services.",
+      detail:
+        "file://, gopher://, dict:// and friends are used to read local files or pivot into internal services.",
       score: 90,
       hard: true,
       evidence: `${scheme}://`,
     });
   }
 
-  const METADATA_HOSTS = ["169.254.169.254", "metadata.google.internal", "metadata.goog", "100.100.100.200", "169.254.170.2"];
+  const METADATA_HOSTS = [
+    "169.254.169.254",
+    "metadata.google.internal",
+    "metadata.goog",
+    "100.100.100.200",
+    "169.254.170.2",
+  ];
   if (METADATA_HOSTS.includes(host)) {
     findings.push({
       rule: "NET_CLOUD_METADATA",
       vector: "network",
       title: "Cloud metadata service",
-      detail: "This endpoint returns the instance's cloud role credentials to any process that can reach it.",
+      detail:
+        "This endpoint returns the instance's cloud role credentials to any process that can reach it.",
       score: 100,
       hard: true,
       evidence: host,
     });
-  } else if (PRIVATE_V4.test(host) || host === "localhost" || host === "::1" || host.endsWith(".internal") || host.endsWith(".local")) {
+  } else if (
+    PRIVATE_V4.test(host) ||
+    host === "localhost" ||
+    host === "::1" ||
+    host.endsWith(".internal") ||
+    host.endsWith(".local")
+  ) {
     findings.push({
       rule: "NET_INTERNAL_TARGET",
       vector: "network",
@@ -463,21 +489,20 @@ function evaluateNetwork(action: GuardAction, policy: GuardPolicy): Finding[] {
       rule: "NET_REBIND_SERVICE",
       vector: "network",
       title: "DNS rebinding service",
-      detail: "Wildcard DNS services resolve to attacker-chosen addresses, including internal ones.",
+      detail:
+        "Wildcard DNS services resolve to attacker-chosen addresses, including internal ones.",
       score: 85,
       hard: true,
       evidence: host,
     });
   }
 
-  const allowed = policy.allowed_hosts.some(
-    (entry) => {
-      const h = entry.trim().toLowerCase();
-      if (!h) return false;
-      if (h.startsWith("*.")) return host === h.slice(2) || host.endsWith(h.slice(1));
-      return host === h;
-    },
-  );
+  const allowed = policy.allowed_hosts.some((entry) => {
+    const h = entry.trim().toLowerCase();
+    if (!h) return false;
+    if (h.startsWith("*.")) return host === h.slice(2) || host.endsWith(h.slice(1));
+    return host === h;
+  });
   if (!allowed) {
     findings.push({
       rule: "NET_HOST_NOT_ALLOWLISTED",
@@ -557,7 +582,8 @@ const INJECTION_PATTERNS: Pattern[] = [
     rule: "INJ_HIDDEN_PAYLOAD",
     re: /[\u200b-\u200f\u202a-\u202e\u2060-\u2064]|<!--[\s\S]{0,200}(ignore|system|instruction)[\s\S]{0,200}-->/i,
     title: "Hidden / invisible instructions",
-    detail: "Zero-width characters, bidi overrides or HTML comments carry instructions a human reviewer cannot see.",
+    detail:
+      "Zero-width characters, bidi overrides or HTML comments carry instructions a human reviewer cannot see.",
     score: 70,
     hard: true,
   },
@@ -565,13 +591,15 @@ const INJECTION_PATTERNS: Pattern[] = [
     rule: "INJ_ENCODED_PAYLOAD",
     re: /\b[A-Za-z0-9+/]{120,}={0,2}\b/,
     title: "Long encoded blob",
-    detail: "A base64-sized blob inside ingested content is a common carrier for hidden instructions.",
+    detail:
+      "A base64-sized blob inside ingested content is a common carrier for hidden instructions.",
     score: 30,
     hard: false,
   },
 ];
 
-const MUTATING_TOOL = /(delete|drop|remove|purge|transfer|payment|charge|refund|send|email|sms|deploy|publish|revoke|grant|rotate|shutdown|terminate|exec|run_)/i;
+const MUTATING_TOOL =
+  /(delete|drop|remove|purge|transfer|payment|charge|refund|send|email|sms|deploy|publish|revoke|grant|rotate|shutdown|terminate|exec|run_)/i;
 
 function evaluateInjection(action: GuardAction): Finding[] {
   const context = action.untrusted_context ?? "";
@@ -579,13 +607,19 @@ function evaluateInjection(action: GuardAction): Finding[] {
   return match(context, INJECTION_PATTERNS, "injection");
 }
 
-function evaluateToolCall(action: GuardAction, policy: GuardPolicy, injectionFindings: Finding[]): Finding[] {
+function evaluateToolCall(
+  action: GuardAction,
+  policy: GuardPolicy,
+  injectionFindings: Finding[],
+): Finding[] {
   const tool = (action.tool ?? "").trim();
   if (!tool) return [];
   const findings: Finding[] = [];
   const serialized = JSON.stringify(action.args ?? {});
 
-  if (policy.approval_required_tools.map((t) => t.trim().toLowerCase()).includes(tool.toLowerCase())) {
+  if (
+    policy.approval_required_tools.map((t) => t.trim().toLowerCase()).includes(tool.toLowerCase())
+  ) {
     findings.push({
       rule: "TOOL_APPROVAL_REQUIRED",
       vector: "injection",
@@ -607,7 +641,8 @@ function evaluateToolCall(action: GuardAction, policy: GuardPolicy, injectionFin
       score: 90,
       hard: true,
       evidence: tool,
-      remediation: "Require explicit human approval for this call, or re-run the task without the untrusted source.",
+      remediation:
+        "Require explicit human approval for this call, or re-run the task without the untrusted source.",
     });
   } else if (mutating) {
     findings.push({
@@ -629,7 +664,8 @@ function evaluateToolCall(action: GuardAction, policy: GuardPolicy, injectionFin
       rule: "TOOL_URL_FROM_UNTRUSTED",
       vector: "injection",
       title: "Outbound URL sourced from untrusted content",
-      detail: "The tool arguments carry a URL while the surrounding context is flagged for injection.",
+      detail:
+        "The tool arguments carry a URL while the surrounding context is flagged for injection.",
       score: 55,
       hard: false,
       evidence: urlArg[0].slice(0, 120),
@@ -654,7 +690,10 @@ export function evaluateAction(action: GuardAction, policy: GuardPolicy): GuardR
   const injectionFindings = evaluateInjection(action);
   const findings: Finding[] = [...injectionFindings];
 
-  switch (action.type) {
+  // Normalize action type to lowercase to prevent case-based bypasses
+  const normalizedType = action.type.toLowerCase() as GuardAction["type"];
+
+  switch (normalizedType) {
     case "shell":
       findings.push(...evaluateShell(action));
       break;
@@ -668,11 +707,22 @@ export function evaluateAction(action: GuardAction, policy: GuardPolicy): GuardR
     case "tool_call":
       findings.push(...evaluateToolCall(action, policy, injectionFindings));
       break;
+    default:
+      // Fail closed on unknown action types
+      findings.push({
+        rule: "UNKNOWN_ACTION_TYPE",
+        vector: "shell",
+        title: "Unknown action type",
+        detail: `Action type "${action.type}" is not recognized. Denying for safety.`,
+        score: 100,
+        hard: true,
+        evidence: action.type,
+      });
   }
 
   // A shell command or file path smuggled inside another action type is still checked.
-  if (action.type !== "shell" && action.command) findings.push(...evaluateShell(action));
-  if (action.type === "shell" && action.url) findings.push(...evaluateNetwork(action, policy));
+  if (normalizedType !== "shell" && action.command) findings.push(...evaluateShell(action));
+  if (normalizedType === "shell" && action.url) findings.push(...evaluateNetwork(action, policy));
 
   const active = findings.filter((f) => policy[VECTOR_ENABLED[f.vector]] === true);
   const deduped = dedupe(active);
@@ -714,6 +764,7 @@ function summarize(verdict: Verdict, findings: Finding[], enforced: boolean): st
   if (findings.length === 0) return `${prefix}No escape indicators found.`;
   const top = findings.slice().sort((a, b) => b.score - a.score)[0]!;
   if (verdict === "deny") return `${prefix}Blocked: ${top.title.toLowerCase()}.`;
-  if (verdict === "needs_approval") return `${prefix}Held for human approval: ${top.title.toLowerCase()}.`;
+  if (verdict === "needs_approval")
+    return `${prefix}Held for human approval: ${top.title.toLowerCase()}.`;
   return `${prefix}Allowed with ${findings.length} low-severity note${findings.length === 1 ? "" : "s"}.`;
 }

@@ -43,12 +43,18 @@ const TYPE_META: Record<ActionType, { icon: typeof Terminal; label: string }> = 
   tool_call: { icon: Wrench, label: "tool call" },
 };
 
-const EXAMPLES = ["https://github.com/expressjs/express", "https://github.com/psf/requests", "https://github.com/vitejs/vite"];
+const EXAMPLES = [
+  "https://github.com/expressjs/express",
+  "https://github.com/psf/requests",
+  "https://github.com/vitejs/vite",
+];
 
 function actionLine(action: AgentRunPlan["steps"][number]["action"]): string {
   if (action.type === "shell") return action.command ?? "";
-  if (action.type === "network") return `${action.url ?? ""}${action.body ? ` — body: ${action.body.slice(0, 120)}` : ""}`;
-  if (action.type === "tool_call") return `${action.tool ?? ""}(${JSON.stringify(action.args ?? {})})`;
+  if (action.type === "network")
+    return `${action.url ?? ""}${action.body ? ` — body: ${action.body.slice(0, 120)}` : ""}`;
+  if (action.type === "tool_call")
+    return `${action.tool ?? ""}(${JSON.stringify(action.args ?? {})})`;
   return action.path ?? "";
 }
 
@@ -77,9 +83,12 @@ export function AgentRun() {
       setResults({});
       setActiveIndex(null);
       setOpen(null);
-      toast.success(`Agent cloned ${value.repo.owner}/${value.repo.repo} and planned ${value.steps.length} actions.`);
+      toast.success(
+        `Agent cloned ${value.repo.owner}/${value.repo.repo} and planned ${value.steps.length} actions.`,
+      );
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not read that repository"),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not read that repository"),
   });
 
   async function runFrom(startIndex: number) {
@@ -168,8 +177,9 @@ export function AgentRun() {
             Run a real agent on a real repo
           </CardTitle>
           <CardDescription>
-            Paste any public GitHub repo. An AI agent reads the repository, writes the exact line-by-line actions it
-            would take to install and run it, then asks Containment before each one — and you watch every verdict.
+            Paste any public GitHub repo. An AI agent reads the repository, writes the exact
+            line-by-line actions it would take to install and run it, then asks Containment before
+            each one — and you watch every verdict.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -182,8 +192,15 @@ export function AgentRun() {
                 if (event.key === "Enter" && url.trim()) ingestMutation.mutate(url.trim());
               }}
             />
-            <Button onClick={() => ingestMutation.mutate(url.trim())} disabled={!url.trim() || ingestMutation.isPending}>
-              {ingestMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Github className="size-4" />}
+            <Button
+              onClick={() => ingestMutation.mutate(url.trim())}
+              disabled={!url.trim() || ingestMutation.isPending}
+            >
+              {ingestMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Github className="size-4" />
+              )}
               {ingestMutation.isPending ? "Cloning & planning…" : "Ingest repo"}
             </Button>
           </div>
@@ -214,7 +231,9 @@ export function AgentRun() {
                 <div
                   className={cn(
                     "relative rounded-lg border-2 border-dashed p-6 text-center",
-                    sealed ? "border-success/50 bg-success/5" : "border-destructive/60 bg-destructive/5",
+                    sealed
+                      ? "border-success/50 bg-success/5"
+                      : "border-destructive/60 bg-destructive/5",
                   )}
                 >
                   {sealed ? (
@@ -243,11 +262,20 @@ export function AgentRun() {
                     { label: "Blocked", value: blocked, tone: "text-destructive" },
                     { label: "Approval", value: approval, tone: "text-warning" },
                     { label: "Allowed", value: allowed, tone: "text-success" },
-                    { label: "Escaped", value: escaped, tone: escaped ? "text-destructive" : "text-muted-foreground" },
+                    {
+                      label: "Escaped",
+                      value: escaped,
+                      tone: escaped ? "text-destructive" : "text-muted-foreground",
+                    },
                   ].map((item) => (
-                    <div key={item.label} className="rounded-md border border-border bg-surface/40 p-3">
+                    <div
+                      key={item.label}
+                      className="rounded-md border border-border bg-surface/40 p-3"
+                    >
                       <dd className={cn("font-mono text-xl", item.tone)}>{item.value}</dd>
-                      <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">{item.label}</dt>
+                      <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                        {item.label}
+                      </dt>
                     </div>
                   ))}
                 </dl>
@@ -256,13 +284,24 @@ export function AgentRun() {
                     {plan.repo.owner}/{plan.repo.repo}
                   </p>
                   <p className="mt-1">
-                    {plan.repo.language ?? "unknown"} · {plan.repo.file_count} files · {plan.repo.stars} stars
+                    {plan.repo.language ?? "unknown"} · {plan.repo.file_count} files ·{" "}
+                    {plan.repo.stars} stars
                   </p>
-                  <p className="mt-1">Read: {plan.repo.scanned_files.join(", ") || "no setup files"}</p>
+                  <p className="mt-1">
+                    Read: {plan.repo.scanned_files.join(", ") || "no setup files"}
+                  </p>
                 </div>
                 <Button className="w-full" onClick={() => void runFrom(0)} disabled={running}>
-                  {running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-                  {running ? "Agent is acting…" : done.length ? "Run again" : `Run ${plan.steps.length} actions`}
+                  {running ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Play className="size-4" />
+                  )}
+                  {running
+                    ? "Agent is acting…"
+                    : done.length
+                      ? "Run again"
+                      : `Run ${plan.steps.length} actions`}
                 </Button>
                 <Button
                   variant="outline"
@@ -274,8 +313,9 @@ export function AgentRun() {
                   Download PDF report
                 </Button>
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  A dated, print-ready report: containment status, the four counters, the policy version that ruled,
-                  every action in a table and the rule-by-rule reasoning behind each verdict.
+                  A dated, print-ready report: containment status, the four counters, the policy
+                  version that ruled, every action in a table and the rule-by-rule reasoning behind
+                  each verdict.
                 </p>
               </CardContent>
             </Card>
@@ -284,11 +324,12 @@ export function AgentRun() {
               {awaiting ? (
                 <div className="rounded-lg border border-warning/60 bg-warning/5 p-4">
                   <p className="text-sm font-medium">
-                    Agent paused at step {awaiting.index + 1} — it needs a human before it can continue
+                    Agent paused at step {awaiting.index + 1} — it needs a human before it can
+                    continue
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Release it and the agent carries on from the next action. Hold it and the run stops here. Either way
-                    the choice is recorded in the audit trail.
+                    Release it and the agent carries on from the next action. Hold it and the run
+                    stops here. Either way the choice is recorded in the audit trail.
                   </p>
                   <div className="mt-3">
                     <ApprovalCard
@@ -334,7 +375,8 @@ export function AgentRun() {
                         </pre>
                         {step.action.untrusted_context ? (
                           <p className="mt-2 rounded-md border border-warning/30 bg-warning/5 p-2 text-[11px] text-muted-foreground">
-                            Influenced by untrusted content: “{step.action.untrusted_context.slice(0, 240)}”
+                            Influenced by untrusted content: “
+                            {step.action.untrusted_context.slice(0, 240)}”
                           </p>
                         ) : null}
                       </div>
@@ -365,23 +407,36 @@ export function AgentRun() {
                             className="mt-2 flex items-center gap-1 text-xs text-primary"
                             onClick={() => setOpen(open === index ? null : index)}
                           >
-                            <ChevronDown className={cn("size-3.5 transition-transform", open === index && "rotate-180")} />
-                            {result.findings.length} rule{result.findings.length === 1 ? "" : "s"} fired
+                            <ChevronDown
+                              className={cn(
+                                "size-3.5 transition-transform",
+                                open === index && "rotate-180",
+                              )}
+                            />
+                            {result.findings.length} rule{result.findings.length === 1 ? "" : "s"}{" "}
+                            fired
                           </button>
                         ) : null}
                         {open === index ? (
                           <ul className="mt-2 space-y-2">
                             {result.findings.map((finding) => (
-                              <li key={finding.rule} className="rounded-md border border-border bg-surface/40 p-2">
+                              <li
+                                key={finding.rule}
+                                className="rounded-md border border-border bg-surface/40 p-2"
+                              >
                                 <div className="flex items-center justify-between gap-2">
                                   <p className="text-xs font-medium">{finding.title}</p>
                                   <span className="font-mono text-[10px] text-muted-foreground">
                                     {finding.rule} · +{finding.score}
                                   </span>
                                 </div>
-                                <p className="mt-1 text-[11px] text-muted-foreground">{finding.detail}</p>
+                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                  {finding.detail}
+                                </p>
                                 {finding.evidence ? (
-                                  <p className="mt-1 font-mono text-[10px] text-destructive">{finding.evidence}</p>
+                                  <p className="mt-1 font-mono text-[10px] text-destructive">
+                                    {finding.evidence}
+                                  </p>
                                 ) : null}
                               </li>
                             ))}

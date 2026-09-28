@@ -13,7 +13,8 @@ export const Route = createFileRoute("/_authenticated/history")({
       { title: "Session history — Containment" },
       {
         name: "description",
-        content: "Reload a previous Containment session with its repository, policy and progress, or delete everything.",
+        content:
+          "Reload a previous Containment session with its repository, policy and progress, or delete everything.",
       },
       { property: "og:title", content: "Session history — Containment" },
       { property: "og:description", content: "Reload or delete saved agent containment sessions." },
@@ -26,7 +27,8 @@ export const Route = createFileRoute("/_authenticated/history")({
 
 function progressLabel(entry: RepoSession) {
   if (entry.live_run_done) return "Live run finished";
-  if (entry.examples_run > 0) return `${entry.examples_run} suggested action${entry.examples_run === 1 ? "" : "s"} run`;
+  if (entry.examples_run > 0)
+    return `${entry.examples_run} suggested action${entry.examples_run === 1 ? "" : "s"} run`;
   if (entry.policy_approved) return "Policy approved";
   return "Repository ingested";
 }
@@ -43,9 +45,9 @@ function HistoryPage() {
           <span className="label-mono">History</span>
           <h1 className="mt-2 text-3xl font-semibold">Your sessions</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Each session is one repository plus everything configured for it — the suggested policy, the actions you ran
-            and how far through the steps you got. Reload one to pick up exactly where you left off, or clear
-            everything and start fresh.
+            Each session is one repository plus everything configured for it — the suggested policy,
+            the actions you ran and how far through the steps you got. Reload one to pick up exactly
+            where you left off, or clear everything and start fresh.
           </p>
         </div>
         <div className="flex gap-2">
@@ -85,8 +87,8 @@ function HistoryPage() {
       {confirmWipe ? (
         <p className="mt-3 flex items-center gap-2 text-sm text-destructive">
           <AlertTriangle className="size-4" />
-          This deletes every saved session and resets the guided flow back to step 1. Your audit trail and policy
-          versions in the backend are kept.
+          This deletes every saved session and resets the guided flow back to step 1. Your audit
+          trail and policy versions in the backend are kept.
         </p>
       ) : null}
 

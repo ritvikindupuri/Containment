@@ -66,7 +66,6 @@ export function WelcomeTour() {
     enabled: hasSession === true,
   });
 
-
   // The walkthrough is tied to the ACCOUNT, so a returning user who already
   // finished setup never sees it again — on any browser or device.
   useEffect(() => {

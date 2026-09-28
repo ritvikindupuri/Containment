@@ -17,7 +17,8 @@ export const Route = createFileRoute("/_authenticated/agent-run")({
       { property: "og:title", content: "Live agent run — Containment" },
       {
         property: "og:description",
-        content: "Watch an AI agent act on a real repository while Containment rules on every action.",
+        content:
+          "Watch an AI agent act on a real repository while Containment rules on every action.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -30,15 +31,16 @@ function AgentRunPage() {
   return (
     <AppShell>
       <FlowGate stage="live_run">
-      <GettingStarted />
-      <StageIntro stage="live_run" />
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight">Live agent run</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          A real agent, a real repository, real verdicts — every action it wants to take is checked here first.
-        </p>
-      </header>
-      <AgentRun />
+        <GettingStarted />
+        <StageIntro stage="live_run" />
+        <header className="mb-6">
+          <h1 className="text-xl font-semibold tracking-tight">Live agent run</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            A real agent, a real repository, real verdicts — every action it wants to take is
+            checked here first.
+          </p>
+        </header>
+        <AgentRun />
       </FlowGate>
     </AppShell>
   );
