@@ -690,7 +690,10 @@ export function evaluateAction(action: GuardAction, policy: GuardPolicy): GuardR
   const injectionFindings = evaluateInjection(action);
   const findings: Finding[] = [...injectionFindings];
 
-  switch (action.type) {
+  // Normalize action type to lowercase to prevent case-based bypasses
+  const normalizedType = action.type.toLowerCase() as GuardAction["type"];
+
+  switch (normalizedType) {
     case "shell":
       findings.push(...evaluateShell(action));
       break;
@@ -704,11 +707,22 @@ export function evaluateAction(action: GuardAction, policy: GuardPolicy): GuardR
     case "tool_call":
       findings.push(...evaluateToolCall(action, policy, injectionFindings));
       break;
+    default:
+      // Fail closed on unknown action types
+      findings.push({
+        rule: "UNKNOWN_ACTION_TYPE",
+        vector: "shell",
+        title: "Unknown action type",
+        detail: `Action type "${action.type}" is not recognized. Denying for safety.`,
+        score: 100,
+        hard: true,
+        evidence: action.type,
+      });
   }
 
   // A shell command or file path smuggled inside another action type is still checked.
-  if (action.type !== "shell" && action.command) findings.push(...evaluateShell(action));
-  if (action.type === "shell" && action.url) findings.push(...evaluateNetwork(action, policy));
+  if (normalizedType !== "shell" && action.command) findings.push(...evaluateShell(action));
+  if (normalizedType === "shell" && action.url) findings.push(...evaluateNetwork(action, policy));
 
   const active = findings.filter((f) => policy[VECTOR_ENABLED[f.vector]] === true);
   const deduped = dedupe(active);

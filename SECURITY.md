@@ -2,193 +2,335 @@
 
 ## Overview
 
-Containment is a security-focused firewall for AI agent actions. This document describes our security posture, recent hardening measures, and how to report vulnerabilities.
+Containment is a production-grade, security-hardened AI agent action firewall. This document describes the comprehensive security controls implemented, deployment requirements, and residual considerations.
 
-## Recent Security Hardening (2026-09)
+## Comprehensive Security Hardening
 
-### Environment Variables and Secrets Management
+### 1. Secrets Management ✅
 
-- **Removed committed secrets**: `.env` file containing Supabase credentials has been removed from git history
-- **Added `.env.example`**: Template file with placeholder values for required environment variables
-- **Enhanced `.gitignore`**: Now explicitly blocks `.env` and `.env.*` files (except `.env.example`)
-- **Note**: Supabase anon/publishable keys are considered low-risk as they're designed for client-side use, but we've removed them from the repository as a defense-in-depth measure
+- **No committed secrets**: All credentials removed from git history
+- **Environment variables**: `.env` blocked via `.gitignore` with `.env.example` template
+- **Secret redaction**: All logs automatically redact AWS keys, API tokens, JWTs, private keys
+- **No secrets in responses**: Errors return generic messages; sensitive details stay server-side
 
-### API Security
+### 2. API Security Hardening ✅
 
-#### CORS Configuration
+#### CORS (Fail-Closed)
+- **Production**: CORS **denies all origins** when `ALLOWED_ORIGINS` is unset (fail-closed)
+- **Development**: Allows `*` when `ALLOWED_ORIGINS` is empty for local dev flexibility
+- **Per-origin validation**: Each request's `Origin` header validated against comma-separated allowlist
 
-- **Environment-driven allowlist**: CORS now respects `ALLOWED_ORIGINS` environment variable
-- **Development flexibility**: Empty `ALLOWED_ORIGINS` allows all origins (default for dev)
-- **Production lockdown**: Set `ALLOWED_ORIGINS` to a comma-separated list of approved origins for production deployments
+#### Rate Limiting
+- **Per-user limits**: 100 requests/minute per authenticated user
+- **Per-IP limits**: 200 requests/minute per source IP
+- **429 responses**: Includes `retry_after` seconds in error response
+- **Fail-open on errors**: Rate limiting failures don't block requests (availability over security)
 
-#### Security Headers
+#### Security Headers (All Responses)
+- `X-Content-Type-Options: nosniff` - MIME-sniffing protection
+- `X-Frame-Options: DENY` - Clickjacking protection
+- `Referrer-Policy: strict-origin-when-cross-origin` - Referrer leakage mitigation
+- `Permissions-Policy` - Disables geolocation, microphone, camera, payment APIs
+- `Cross-Origin-Opener-Policy: same-origin` - Process isolation
+- `Cross-Origin-Embedder-Policy: require-corp` - Embedding protection
+- `Cross-Origin-Resource-Policy: same-origin` - Resource isolation
+- `Strict-Transport-Security` (production only): HSTS with 1-year max-age and preload
 
-All API responses now include:
+#### Content Security Policy (HTML Responses)
+```
+default-src 'self';
+script-src 'self' 'unsafe-inline' 'unsafe-eval';
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+font-src 'self' https://fonts.gstatic.com;
+img-src 'self' data: https:;
+connect-src 'self' https://*.supabase.co wss://*.supabase.co;
+frame-ancestors 'none';
+base-uri 'self';
+form-action 'self';
+object-src 'none';
+```
+*Note: `unsafe-eval` required for Vite dev mode; remove if using production builds only*
 
-- `X-Content-Type-Options: nosniff` - Prevents MIME-type sniffing
-- `X-Frame-Options: DENY` - Prevents clickjacking
-- `Referrer-Policy: strict-origin-when-cross-origin` - Limits referrer information leakage
+### 3. Fail-Closed Behavior ✅
 
-#### Fail-Closed Behavior
+#### Policy Engine
+- **Unknown action types**: Automatically denied with score 100
+- **Evaluation exceptions**: Any throw → deny verdict, logged to audit trail
+- **Case normalization**: Action types normalized to lowercase before matching
+- **Encoding normalization**: Commands unquoted, paths decoded/normalized before checks
 
-- **Policy evaluation errors**: If the policy engine throws an exception, the action is **automatically denied** (verdict: `deny`, risk_score: 100)
-- **Database errors**: API returns appropriate HTTP error codes without allowing actions through
-- **No silent failures**: All error paths are logged to the audit trail
+#### Error Handling
+- **No silent failures**: All error paths explicitly deny or return errors
+- **Generic client errors**: Internal errors return "An error occurred processing your request"
+- **Detailed server logs**: Full errors logged server-side with secret redaction
 
-### Database Security
+### 4. Authorization & Authentication ✅
 
-#### Row Level Security (RLS)
+#### Every Function Verified
+- **JWT validation**: All authenticated routes verify `auth.uid()` via Supabase RLS
+- **Ownership checks**: API verifies `policy.user_id === key.user_id` before evaluation
+- **Row Level Security**: Every table enforces user ownership via RLS policies
 
-All tables enforce RLS with user-scoped policies:
+#### RLS on All Tables
+| Table | Policy | Enforcement |
+|-------|--------|-------------|
+| `profiles` | `profiles_own` | `auth.uid() = id` |
+| `policies` | `policies_own` | `auth.uid() = user_id` |
+| `api_keys` | `api_keys_own` | `auth.uid() = user_id` |
+| `decisions` | `decisions_select_own` | `auth.uid() = user_id` (SELECT only) |
+| `decisions` | `decisions_insert_own` | `auth.uid() = user_id` (INSERT only) |
+| `policy_versions` | `policy_versions_select_own` | `auth.uid() = user_id` (SELECT) |
+| `policy_versions` | `policy_versions_insert_own` | `auth.uid() = user_id` (INSERT) |
+| `flow_sessions` | `flow_sessions_own` | `auth.uid() = user_id` |
 
-- `profiles` - Users can only access their own profile
-- `policies` - Users can only access their own policies
-- `api_keys` - Users can only access their own API keys
-- `decisions` - Users can only access their own decision history
-- `policy_versions` - Users can only access versions of their own policies
-- `flow_sessions` - Users can only access their own flow sessions
+### 5. Append-Only Tamper-Evident Audit Trail ✅
 
-#### Function Security
+#### Hash Chain Implementation
+- **SHA256 hash chain**: Each decision includes `prev_hash` and `row_hash`
+- **Automatic**: Trigger computes hash on insert: `SHA256(prev_hash || id || user_id || policy_id || action_type || verdict || risk_score || timestamp)`
+- **Append-only**: `decisions` table does NOT allow UPDATE or DELETE for authenticated users
+- **Immutable audit log**: Service role can modify for maintenance; users cannot tamper
+- **Per-user chains**: Hash chain is separate per user for verification isolation
 
-- `handle_new_user()` - Runs as `SECURITY DEFINER` with controlled `search_path`
-- `touch_updated_at()` - Runs with `search_path = public` for safety
-- Both functions explicitly `REVOKE` permissions from `PUBLIC`, `anon`, and `authenticated` roles
+#### Verification
+To verify chain integrity:
+```sql
+SELECT id, prev_hash, row_hash, created_at,
+  compute_decision_hash(prev_hash, id, user_id, policy_id, 
+    action_type::TEXT, verdict::TEXT, risk_score, created_at) as expected_hash,
+  row_hash = compute_decision_hash(prev_hash, id, user_id, policy_id, 
+    action_type::TEXT, verdict::TEXT, risk_score, created_at) as valid
+FROM decisions
+WHERE user_id = '<user_id>'
+ORDER BY created_at, id;
+```
 
-### Input Validation and Injection Prevention
+### 6. Input Validation & Injection Prevention ✅
 
-#### Policy Engine Protections
+#### Schema Validation
+- **Strict schemas**: Zod schemas reject unknown properties (`.strict()`)
+- **Type enforcement**: Enum for action types prevents invalid values
+- **Length limits**: Commands (20KB), content (200KB), paths (4KB), URLs (4KB)
+- **Trimming**: All string fields trimmed to prevent whitespace bypasses
 
-The guard engine includes comprehensive detection for:
+#### Pattern Matching (Policy Engine)
+- **Shell**: Reverse shells, obfuscation, privilege escalation, credential harvesting, metadata endpoints
+- **Filesystem**: Path traversal, sensitive files (.ssh, .aws, .env), kernel interfaces, runtime sockets
+- **Network**: SSRF (metadata, private IPs), DNS rebinding, encoded hosts, allowlist enforcement
+- **Injection**: Instruction override, role hijack, secret solicitation, embedded commands, hidden payloads
 
-- **Shell injection**: Reverse shells, command obfuscation, privilege escalation, credential harvesting
-- **Path traversal**: `..` sequences, URL encoding, symbolic link exploitation
-- **SSRF**: Cloud metadata endpoints (169.254.169.254, etc.), private IP ranges, DNS rebinding services
-- **Prompt injection**: Instruction override, role hijacking, secret solicitation, hidden payloads
-- **Encoding tricks**: Commands are normalized (unquoted, backslash-escaped) before pattern matching
+#### Normalization
+- **Shell commands**: Unquoted, backslashes removed, `${IFS}` → space, multiple spaces collapsed
+- **File paths**: URL-decoded, backslashes → slashes, `..` resolved, absolute paths normalized
+- **Hostnames**: Lowercased, trailing dots removed
+- **Action types**: Lowercased before switch statement
 
-#### Input Sanitization
+### 7. Prompt Injection Defenses ✅
 
-- **Action schema validation**: All incoming actions are validated via Zod schemas before processing
-- **Type safety**: TypeScript enum for action types prevents case tricks
-- **Length limits**: All string fields have maximum length constraints (commands: 20KB, content: 200KB)
-- **Case normalization**: Hostnames and patterns are compared case-insensitively where appropriate
+#### Detection
+- **Untrusted context tracking**: `untrusted_context` field flags LLM-ingested content
+- **Tool call correlation**: If mutating tool + injection patterns → 90-point "injection-driven mutation" finding
+- **URL extraction**: URLs in tool args + injection flags → 55-point "URL from untrusted" finding
+- **Secret extraction**: Patterns for "print your API key" etc. flagged
 
-### Frontend Security
+#### Deterministic Overrides
+- **Hard denials cannot be overridden**: If `finding.hard === true`, verdict is `deny` regardless of AI reasoning
+- **Thresholds enforced**: Risk scores ≥ `deny_threshold` → deny, ≥ `approval_threshold` → needs_approval
+- **Evaluation failures**: Any exception → automatic deny (cannot be bypassed by malicious input)
 
-#### XSS Prevention
+### 8. XSS Prevention ✅
 
-- **No dangerous innerHTML**: The codebase uses React's safe rendering by default
-- **Single controlled exception**: `dangerouslySetInnerHTML` in `chart.tsx` is limited to CSS generation from a controlled config object (not user input)
-- **Type-safe templating**: React JSX prevents injection in dynamic content
+- **React safe rendering**: All dynamic content rendered via React (auto-escapes)
+- **No `dangerouslySetInnerHTML`**: Except `chart.tsx` CSS generation from controlled config (not user input)
+- **CSP frame-ancestors 'none'**: Prevents embedding attacks
+- **No user-controlled `innerHTML`**: Codebase audited, none found
 
-### Dependency Management
+### 9. Dependency Management ✅
 
-- **Dependabot enabled**: Weekly automated security updates for npm dependencies
-- **Grouped updates**: Minor/patch updates are grouped by production vs development for easier review
-- **Manual major updates**: Major version bumps require explicit review
+#### Dependabot
+- **Weekly scans**: Automated PRs for minor/patch updates (grouped)
+- **Manual major updates**: Major versions require explicit review
+- **Production vs dev grouped**: Easier triage
+
+#### GitHub Actions CI
+- **Secret scanning**: Gitleaks on every push (fails on secrets found)
+- **Dependency audit**: `npm audit --audit-level=high` fails on high/critical vulns
+- **Lint & type check**: ESLint + TypeScript checks enforce code quality
+- **Build verification**: Every PR must build successfully
+- **Pinned actions**: All GitHub Actions pinned to commit SHAs for supply chain security
+
+### 10. HTTPS & Transport Security ✅
+
+- **HSTS in production**: 1-year max-age with includeSubDomains and preload
+- **TLS enforcement**: All Supabase connections via HTTPS/WSS
+- **Secure cookies**: Supabase auth uses secure, httpOnly, SameSite cookies (handled by Supabase SDK)
+
+## Production Deployment Requirements
+
+### Required Environment Variables
+
+```bash
+# Supabase (required)
+SUPABASE_PROJECT_ID="your-project-id"
+SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
+SUPABASE_URL="https://your-project-id.supabase.co"
+VITE_SUPABASE_PROJECT_ID="your-project-id"
+VITE_SUPABASE_PUBLISHABLE_KEY="your-publishable-key"
+VITE_SUPABASE_URL="https://your-project-id.supabase.co"
+
+# CORS Allowlist (REQUIRED in production, fail-closed if unset)
+ALLOWED_ORIGINS="https://app.example.com,https://staging.example.com"
+```
+
+### Deployment Checklist
+
+- [ ] Set `ALLOWED_ORIGINS` to approved domains (fail-closed if empty)
+- [ ] Run database migrations (including hash chain migration)
+- [ ] Verify RLS policies are enabled on all tables
+- [ ] Configure secrets in secrets manager (AWS Secrets Manager, HashiCorp Vault, etc.)
+- [ ] Set up monitoring for high-risk decisions (risk_score ≥ 80)
+- [ ] Configure alerts for rate limit threshold breaches
+- [ ] Enable Supabase database backups
+- [ ] Test hash chain verification on a sample of decisions
+- [ ] Verify HSTS header is present in production responses
+- [ ] Confirm CSP does not block legitimate resources
 
 ## Residual Security Considerations
 
-### Known Limitations
+### Items Requiring Manual Configuration
 
-1. **Pattern-based detection**: The policy engine uses regex patterns which may not catch novel attack vectors
-2. **No rate limiting**: The API currently has no built-in rate limiting (recommend adding at the infrastructure level)
-3. **No request signing**: API keys are bearer tokens without request signing (consider HMAC signatures for high-security use cases)
-4. **Limited DDoS protection**: Recommend adding infrastructure-level protections (e.g., CloudFlare, AWS WAF)
-5. **No CSP headers**: Content Security Policy is not configured (low priority for API-first application)
-6. **Service account permissions**: `service_role` has full database access (Supabase default; consider tightening in production)
+1. **Infrastructure-Level DDoS Protection**
+   - **What**: Large-scale volumetric attacks can overwhelm application rate limiting
+   - **Manual step**: Deploy behind CloudFlare (recommended), AWS CloudFront + WAF, or equivalent CDN with DDoS protection enabled
+   - **Why not in code**: Requires infrastructure/DNS configuration outside application
 
-### Recommended Production Hardening
+2. **API Key Rotation Policy**
+   - **What**: Long-lived API keys increase compromise window
+   - **Manual step**: Implement organizational policy for periodic key rotation (recommend 90 days). Users can revoke/regenerate via UI but policy is not enforced
+   - **Why not in code**: Business policy decision; expiration dates could be added to schema but rotation is a process, not code
 
-1. **Set `ALLOWED_ORIGINS`**: Never deploy with wildcard CORS in production
-2. **Enable rate limiting**: Use a reverse proxy or API gateway with rate limits
-3. **Add request signing**: Consider implementing HMAC signatures for API requests
-4. **Monitor audit logs**: Set up alerts on `decisions` table for high-risk actions
-5. **Regular security audits**: Review `decisions` and `api_keys` tables for anomalies
-6. **Rotate keys**: Implement periodic API key rotation policies
-7. **Infrastructure security**: Use VPC, security groups, and network ACLs to limit database access
-8. **Secrets management**: Use a secrets manager (AWS Secrets Manager, HashiCorp Vault) for production credentials
+3. **Supabase Service Role Lockdown**
+   - **What**: `service_role` has full database access (Supabase default for admin operations)
+   - **Manual step**: If using service role for non-admin operations, create a restricted role with minimal grants
+   - **Why not in code**: Supabase platform configuration; service role needed for RLS bypass in legitimate admin operations
 
-### Simulated Attack Scenarios
+4. **Database Backup & Disaster Recovery**
+   - **What**: Point-in-time recovery for data loss or corruption
+   - **Manual step**: Enable Supabase automatic backups (daily), configure backup retention policy, test restore procedures
+   - **Why not in code**: Supabase project setting, not application code
 
-This repository contains **simulated** attack examples for demonstration purposes only:
+5. **Log Aggregation & SIEM**
+   - **What**: Centralized logging for security event correlation and alerting
+   - **Manual step**: Forward application logs to SIEM (Splunk, ELK, Datadog, etc.), configure alerting rules for high-risk events
+   - **Why not in code**: External system integration requiring org-specific SIEM setup
 
-- All attack patterns in the policy engine are for **detection**, not execution
-- Demo scenarios do not contain real exploit code
-- The system is designed to **block** these patterns, not enable them
+6. **Incident Response Plan**
+   - **What**: Documented procedures for security incidents (key compromise, policy bypass, etc.)
+   - **Manual step**: Document playbook: who to notify, how to revoke keys, how to audit decisions, evidence preservation
+   - **Why not in code**: Organizational process, not technical control
 
-## Reporting a Vulnerability
+### Known Technical Limitations
 
-If you discover a security vulnerability in Containment, please report it responsibly:
+1. **Pattern-Based Detection**
+   - **Limitation**: Policy engine uses regex patterns; novel attack vectors may evade detection
+   - **Mitigation**: Hash chain audit trail provides forensic evidence; monitor new attack techniques and update patterns
+   - **Improvement path**: Add ML-based anomaly detection as future enhancement
 
-1. **Do NOT** open a public GitHub issue
-2. Email the security team with details:
+2. **Rate Limiting Granularity**
+   - **Limitation**: Per-user and per-IP only; sophisticated attackers with many IPs can distribute load
+   - **Mitigation**: Infrastructure-level DDoS protection (see #1), monitor aggregate throughput
+   - **Improvement path**: Add per-endpoint, per-policy-id, and time-of-day aware rate limiting
+
+3. **No Request Signing**
+   - **Limitation**: API keys are bearer tokens; if intercepted, can be replayed until revoked
+   - **Mitigation**: Use HTTPS (enforced), short-lived keys, monitor `last_used_at` for anomalies
+   - **Improvement path**: Implement HMAC request signing (requires client library changes)
+
+## Vulnerability Reporting
+
+If you discover a security vulnerability in Containment:
+
+### Do NOT
+- Open a public GitHub issue
+- Disclose publicly before we've issued a fix
+- Test attacks on production systems you don't own
+
+### Do
+1. **Email**: security@[your-domain] with:
    - Description of the vulnerability
-   - Steps to reproduce
+   - Steps to reproduce (PoC)
    - Potential impact
    - Suggested remediation (if known)
-3. Allow reasonable time for a fix before public disclosure
-4. We will acknowledge receipt within 48 hours
-5. We will provide a timeline for a fix within 7 days
+2. **Expect**: Acknowledgment within 48 hours, timeline for fix within 7 days
+3. **Coordinated disclosure**: We'll coordinate public disclosure timing with you
 
-### Scope
-
-**In scope:**
-
-- Authentication bypass
-- Authorization bypass (accessing other users' data)
+### In Scope
+- Authentication/authorization bypass
 - SQL injection
 - XSS or other client-side injection
-- API abuse or rate limiting issues
+- API abuse or rate limiting bypass
+- Policy engine bypass
 - Cryptographic vulnerabilities
 - Information disclosure
+- Audit trail tampering
 
-**Out of scope:**
-
+### Out of Scope
 - Social engineering
 - Physical attacks
 - Denial of service (unless critical)
-- Issues in third-party dependencies (report to upstream maintainers)
-- Theoretical attacks without proof of concept
+- Issues in third-party dependencies (report to upstream, we'll patch)
+- Theoretical attacks without PoC
 
-## Security Best Practices for Users
+## Security Best Practices
 
 ### For Operators
 
-1. **Guard your API keys**: Treat them like passwords; never commit them to git
-2. **Use enforce mode**: Set policies to `mode: enforce` in production
-3. **Review approval queue**: Regularly review actions that require human approval
-4. **Monitor risk scores**: Set up alerts for actions with risk scores above your threshold
-5. **Update regularly**: Keep Containment and its dependencies up to date
+1. **Use enforce mode**: Set policies to `mode: enforce` in production (monitor mode logs but doesn't block)
+2. **Review approval queue**: Check `decisions` where `approval_state = 'pending'` daily
+3. **Monitor risk scores**: Alert on `risk_score ≥ 80` for manual review
+4. **Audit hash chain**: Periodically verify chain integrity with SQL verification query
+5. **Rotate keys**: Revoke and regenerate API keys every 90 days
+6. **Update policies**: Review and tighten `allowed_hosts`, `allowed_write_paths` quarterly
 
 ### For Developers
 
-1. **Never bypass the guard**: Always route agent actions through the Containment API
-2. **Log all decisions**: Ensure every agent action is logged to the audit trail
-3. **Validate untrusted content**: Mark any LLM-ingested content with `untrusted_context`
-4. **Test your policies**: Use the policy test runner before deploying new rules
-5. **Fail closed**: If the Containment API is unreachable, **deny** the action by default
+1. **Always route through Containment**: Never bypass the guard for "just this one action"
+2. **Mark untrusted content**: Set `untrusted_context` when LLM ingests external data
+3. **Log all decisions**: Every agent action must create a `decisions` row (automatic via API)
+4. **Fail closed locally**: If Containment API is unreachable, **deny** the action, don't proceed
+5. **Test policy changes**: Use test runner before deploying new policy rules
+6. **Monitor agent behavior**: Unexpected patterns (many denials, high risk scores) indicate compromise or misconfiguration
 
-## Compliance and Standards
+### For Security Teams
 
-Containment follows security best practices aligned with:
+1. **Hash chain verification**: Run integrity checks on random samples of audit log
+2. **Anomaly detection**: Baseline normal risk score distribution, alert on deviations
+3. **Threat intel integration**: Update policy patterns when new agent exploits are published
+4. **Red team testing**: Periodically test with simulated attacks (coordinated with ops)
+5. **Compliance mapping**: Map policy rules to compliance requirements (SOC2, ISO 27001, etc.)
 
-- OWASP Top 10 (Web Application Security)
-- OWASP API Security Top 10
-- CWE/SANS Top 25 Most Dangerous Software Weaknesses
-- NIST Cybersecurity Framework
+## Compliance & Standards
+
+Containment's security controls align with:
+- **OWASP Top 10** (2021): Injection, Auth, Data Integrity
+- **OWASP API Security Top 10**: Broken auth, excessive data exposure, injection, improper assets management
+- **CWE Top 25**: Command injection, path traversal, improper input validation
+- **NIST Cybersecurity Framework**: Identify, Protect, Detect, Respond
+- **SOC 2 Type II**: Audit logging (append-only), access controls (RLS), encryption in transit (HTTPS)
 
 ## Version History
 
-- **2026-09-28**: Initial security hardening pass (secrets, CORS, fail-closed, headers, RLS audit, Dependabot)
-- **2026-08-14**: Flow sessions RLS and archival support
+- **2026-09-28**: Full hardening pass - rate limiting, fail-closed CORS, CSP, hash chain audit, comprehensive security headers, secret redaction, GitHub Actions security, unknown action type handling
+- **2026-09-28**: Initial hardening - secrets removed, CORS allowlist, fail-closed errors, Dependabot
+- **2026-08-14**: Flow sessions RLS and archival
 - **2026-08-09**: AI risk advisor integration
-- **2026-08-05**: Flow sessions and onboarding added
-- **2026-08-04**: Initial RLS policies and policy versioning
-- **2026-08-04**: Core guard engine and decision logging
+- **2026-08-05**: Flow sessions and onboarding
+- **2026-08-04**: Policy versioning and RLS
+- **2026-08-04**: Initial release - core guard engine and decision logging
 
-## Contact
+## Support
 
-For security inquiries: [Your security contact email]
-
-For general support: [Your support contact]
+- **Security inquiries**: security@[your-domain]
+- **General support**: support@[your-domain]
+- **Documentation**: See `TECHNICAL_DOCUMENTATION.md`
+- **GitHub Issues**: For bugs and feature requests (not security issues)

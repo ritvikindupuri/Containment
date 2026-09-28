@@ -1,0 +1,127 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [main, "cursor/**"]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run security checks daily at 2 AM UTC
+    - cron: "0 2 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: Secret Scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@cb7149a9e484f267dd3d077370ff0f26667f50ee # v2.3.7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d00f2ebd6cb2c1e4aa63 # v4.3.1
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: |
+          # Fail on high/critical vulnerabilities
+          npm audit --audit-level=high
+        continue-on-error: false
+
+      - name: Check for outdated dependencies
+        run: npm outdated || true
+
+  lint-and-type-check:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d00f2ebd6cb2c1e4aa63 # v4.3.1
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d00f2ebd6cb2c1e4aa63 # v4.3.1
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [secret-scan, dependency-audit, lint-and-type-check, build]
+    if: always()
+    permissions:
+      contents: read
+    steps:
+      - name: Check job results
+        run: |
+          echo "Secret Scan: ${{ needs.secret-scan.result }}"
+          echo "Dependency Audit: ${{ needs.dependency-audit.result }}"
+          echo "Lint & Type Check: ${{ needs.lint-and-type-check.result }}"
+          echo "Build: ${{ needs.build.result }}"
+          
+          if [ "${{ needs.secret-scan.result }}" != "success" ] || \
+             [ "${{ needs.dependency-audit.result }}" != "success" ] || \
+             [ "${{ needs.lint-and-type-check.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ]; then
+            echo "❌ One or more security checks failed"
+            exit 1
+          fi
+          echo "✅ All security checks passed"
