@@ -124,9 +124,9 @@ export function LiveDiagram() {
         <div className="rounded-2xl border border-white/[0.08] bg-black/60 p-5">
           <div className="flex items-center gap-2 text-xs font-medium text-zinc-400">
             <Bot className="size-4 text-zinc-400" />
-            Agent proposes
+            Agent Proposes
           </div>
-          <p className="mt-3 break-all font-mono text-xs text-zinc-300 bg-white/[0.03] p-2.5 rounded-lg border border-white/[0.04]">
+          <p className="mt-3 break-all font-mono text-xs text-zinc-200 bg-white/[0.04] p-3 rounded-xl border border-white/[0.05]">
             {sample.wire}
           </p>
         </div>
@@ -152,30 +152,10 @@ export function LiveDiagram() {
             <span className={cn("font-mono text-sm font-semibold tracking-wider", style.text)}>
               {style.label}
             </span>
-            <span className="ml-auto font-mono text-[11px] text-zinc-400">risk {result.risk_score}</span>
+            <span className="ml-auto font-mono text-[11px] text-zinc-400">risk {result.risk_score}/100</span>
           </div>
-          <p className="mt-3 text-sm text-zinc-300 leading-snug">{result.summary}</p>
+          <p className="mt-3 text-sm text-zinc-200 leading-snug">{result.summary}</p>
           <p className={cn("mt-2 text-xs font-medium", style.text)}>{style.note}</p>
-        </div>
-      </div>
-
-      <div className="mt-6 pt-5 border-t border-white/[0.06] grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
-        <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-1.5">
-          <ContainmentShield size={16} variant="logo" />
-          <span className="font-mono text-xs text-zinc-400">Containment engine</span>
-        </div>
-        <div className="space-y-1.5">
-          {result.findings.length === 0 ? (
-            <p className="text-xs text-zinc-400">No rule matched — the action passes untouched.</p>
-          ) : (
-            result.findings.slice(0, 3).map((finding) => (
-              <div key={finding.rule} className="flex items-start gap-2 text-xs">
-                <ArrowRight className="mt-0.5 size-3 shrink-0 text-zinc-500" />
-                <span className="font-mono text-white/90">{finding.rule}</span>
-                <span className="text-zinc-400">{finding.title}</span>
-              </div>
-            ))
-          )}
         </div>
       </div>
     </div>

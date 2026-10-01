@@ -89,54 +89,19 @@ function Landing() {
         </div>
       </section>
 
-      {/* Interactive Action Firewall Section */}
-      <section className="border-t border-white/[0.08] bg-zinc-950/40 py-24">
+      {/* Interactive Action Firewall Section: OpenAI-style simplicity */}
+      <section className="border-t border-white/[0.08] bg-zinc-950/40 py-24 sm:py-32">
         <div className="mx-auto max-w-5xl px-6">
-          <div className="text-center space-y-3 mb-12">
-            <p className="text-xs font-mono uppercase tracking-widest text-primary">Interactive Demo</p>
-            <h2 className="text-2xl font-normal tracking-tight sm:text-4xl text-white">
-              Watch dangerous actions get intercepted in real time.
+          <div className="text-center space-y-4 mb-14">
+            <h2 className="text-3xl font-normal tracking-tight sm:text-5xl text-white">
+              See how it works.
             </h2>
-            <p className="text-sm text-zinc-400 max-w-lg mx-auto">
-              Simulate agent actions to see how Containment classifies safe developer commands versus sandbox breakout attempts.
+            <p className="text-base text-zinc-400 max-w-md mx-auto leading-relaxed">
+              Test agent actions against the firewall to see instant allow, hold, and deny decisions.
             </p>
           </div>
 
           <LiveDiagram />
-        </div>
-      </section>
-
-      {/* Minimalist SDK Integration Preview */}
-      <section className="border-t border-white/[0.08] py-24">
-        <div className="mx-auto max-w-3xl px-6 text-center">
-          <p className="text-xs font-mono uppercase tracking-widest text-primary">Integration</p>
-          <h2 className="mt-3 text-2xl font-normal tracking-tight sm:text-4xl text-white">
-            One call before your agent runs any tool
-          </h2>
-          <p className="mt-3 text-sm text-zinc-400 max-w-md mx-auto">
-            Drop Containment in front of LangChain, AutoGen, CrewAI, or raw LLM function calling to block malicious escapes.
-          </p>
-
-          <div className="mt-8 text-left rounded-2xl border border-white/[0.08] bg-zinc-950 p-6 font-mono text-xs shadow-2xl overflow-x-auto">
-            <div className="flex items-center gap-2 pb-3 mb-4 border-b border-white/[0.06] text-zinc-500">
-              <span className="size-2 rounded-full bg-zinc-700"></span>
-              <span className="size-2 rounded-full bg-zinc-700"></span>
-              <span className="size-2 rounded-full bg-zinc-700"></span>
-              <span className="ml-2 text-[11px] text-zinc-400">agent-guard-integration.ts</span>
-            </div>
-            <pre className="text-zinc-300 leading-relaxed">
-              <code>
-                <span className="text-purple-400">import</span> &#123; guard &#125; <span className="text-purple-400">from</span> <span className="text-emerald-300">"@containment/sdk"</span>;{"\n\n"}
-                <span className="text-zinc-500">// Intercept proposed tool calls before pod execution</span>{"\n"}
-                <span className="text-purple-400">const</span> verdict = <span className="text-purple-400">await</span> guard.intercept(agentToolCall);{"\n\n"}
-                <span className="text-purple-400">if</span> (verdict.decision === <span className="text-emerald-300">"ALLOW"</span>) &#123;{"\n"}
-                {"  "}<span className="text-purple-400">await</span> executeInSandbox(agentToolCall);{"\n"}
-                &#125; <span className="text-purple-400">else</span> &#123;{"\n"}
-                {"  "}console.warn(<span className="text-amber-300">`Action intercepted: $&#123;verdict.reason&#125;`</span>);{"\n"}
-                &#125;
-              </code>
-            </pre>
-          </div>
         </div>
       </section>
 
