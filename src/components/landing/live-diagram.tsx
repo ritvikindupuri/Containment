@@ -68,25 +68,25 @@ const SAMPLES: Sample[] = [
 
 const VERDICT_STYLES = {
   allow: {
-    text: "text-success",
-    ring: "border-success/40 bg-success/10",
-    dot: "bg-success",
+    text: "text-emerald-400",
+    ring: "border-emerald-500/30 bg-emerald-500/[0.08]",
+    dot: "bg-emerald-400",
     label: "ALLOW",
-    note: "Action executes.",
+    note: "Action executes inside sandbox.",
   },
   needs_approval: {
-    text: "text-warning",
-    ring: "border-warning/40 bg-warning/10",
-    dot: "bg-warning",
+    text: "text-amber-400",
+    ring: "border-amber-500/30 bg-amber-500/[0.08]",
+    dot: "bg-amber-400",
     label: "HOLD",
-    note: "Routed to a human.",
+    note: "Routed to human approval queue.",
   },
   deny: {
-    text: "text-destructive",
-    ring: "border-destructive/40 bg-destructive/10",
-    dot: "bg-destructive",
+    text: "text-red-400",
+    ring: "border-red-500/30 bg-red-500/[0.08]",
+    dot: "bg-red-400",
     label: "DENY",
-    note: "Action never runs.",
+    note: "Action blocked before execution.",
   },
 } as const;
 
@@ -99,7 +99,8 @@ export function LiveDiagram() {
   const contained = result.verdict !== "allow";
 
   return (
-    <div className="rounded-2xl border border-border bg-card/70 p-4 backdrop-blur sm:p-6">
+    <div className="rounded-3xl border border-white/[0.08] bg-zinc-950/70 p-5 backdrop-blur-xl sm:p-7 shadow-2xl">
+      {/* Action Selector Pills */}
       <div className="flex flex-wrap gap-2">
         {SAMPLES.map((item) => (
           <button
@@ -107,10 +108,10 @@ export function LiveDiagram() {
             type="button"
             onClick={() => setActiveId(item.id)}
             className={cn(
-              "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200",
+              "flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-200",
               item.id === activeId
-                ? "border-primary/50 bg-primary/12 text-primary"
-                : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                ? "border-white/30 bg-white/10 text-white shadow-sm"
+                : "border-white/[0.06] bg-black/40 text-zinc-400 hover:border-white/15 hover:text-white",
             )}
           >
             <item.icon className="size-3.5" />
@@ -119,28 +120,30 @@ export function LiveDiagram() {
         ))}
       </div>
 
-      <div key={sample.id} className="mt-6 grid animate-fade-in items-center gap-3 md:grid-cols-[1fr_auto_1fr]">
-        <div className="rounded-xl border border-border bg-surface/60 p-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Bot className="size-4 text-muted-foreground" />
+      <div key={sample.id} className="mt-6 grid animate-fade-in items-center gap-4 md:grid-cols-[1fr_auto_1fr]">
+        <div className="rounded-2xl border border-white/[0.08] bg-black/60 p-5">
+          <div className="flex items-center gap-2 text-xs font-medium text-zinc-400">
+            <Bot className="size-4 text-zinc-400" />
             Agent proposes
           </div>
-          <p className="mt-3 break-all font-mono text-xs text-muted-foreground">{sample.wire}</p>
+          <p className="mt-3 break-all font-mono text-xs text-zinc-300 bg-white/[0.03] p-2.5 rounded-lg border border-white/[0.04]">
+            {sample.wire}
+          </p>
         </div>
 
-        <div className="relative hidden h-10 w-full min-w-24 items-center md:flex">
-          <div className="h-px w-full bg-border" />
+        <div className="relative hidden h-10 w-full min-w-20 items-center md:flex">
+          <div className="h-px w-full bg-white/[0.08]" />
           <span
             className={cn(
               "absolute size-2 rounded-full animate-packet",
-              contained ? "bg-destructive" : "bg-success",
+              contained ? "bg-red-500" : "bg-emerald-500",
             )}
           />
         </div>
 
         <div
           className={cn(
-            "rounded-xl border p-4 transition-colors duration-300",
+            "rounded-2xl border p-5 transition-colors duration-300",
             style.ring,
           )}
         >
@@ -149,27 +152,27 @@ export function LiveDiagram() {
             <span className={cn("font-mono text-sm font-semibold tracking-wider", style.text)}>
               {style.label}
             </span>
-            <span className="label-mono ml-auto">risk {result.risk_score}</span>
+            <span className="ml-auto font-mono text-[11px] text-zinc-400">risk {result.risk_score}</span>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">{result.summary}</p>
+          <p className="mt-3 text-sm text-zinc-300 leading-snug">{result.summary}</p>
           <p className={cn("mt-2 text-xs font-medium", style.text)}>{style.note}</p>
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
-        <div className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/8 px-3 py-2">
-          <ContainmentShield size={18} variant="logo" />
-          <span className="label-mono">Containment engine</span>
+      <div className="mt-6 pt-5 border-t border-white/[0.06] grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
+        <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-1.5">
+          <ContainmentShield size={16} variant="logo" />
+          <span className="font-mono text-xs text-zinc-400">Containment engine</span>
         </div>
         <div className="space-y-1.5">
           {result.findings.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No rule matched — the action passes untouched.</p>
+            <p className="text-xs text-zinc-400">No rule matched — the action passes untouched.</p>
           ) : (
             result.findings.slice(0, 3).map((finding) => (
               <div key={finding.rule} className="flex items-start gap-2 text-xs">
-                <ArrowRight className="mt-0.5 size-3 shrink-0 text-primary" />
-                <span className="font-mono text-primary">{finding.rule}</span>
-                <span className="text-muted-foreground">{finding.title}</span>
+                <ArrowRight className="mt-0.5 size-3 shrink-0 text-zinc-500" />
+                <span className="font-mono text-white/90">{finding.rule}</span>
+                <span className="text-zinc-400">{finding.title}</span>
               </div>
             ))
           )}

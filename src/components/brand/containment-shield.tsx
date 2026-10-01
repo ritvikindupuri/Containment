@@ -28,15 +28,15 @@ export function ContainmentShield({
 
   const svgContent = (
     <svg
-      viewBox="0 0 100 100"
+      viewBox="0 -5 108 106"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn(
-        "shrink-0 transition-transform duration-200",
+        "shrink-0 transition-transform duration-200 overflow-visible",
         isHero ? "size-full filter drop-shadow-[0_24px_48px_rgba(0,0,0,0.7)]" : "",
         className
       )}
-      style={!isHero ? { width: size, height: size } : undefined}
+      style={!isHero ? { width: size, height: size } : { overflow: "visible" }}
     >
       <defs>
         {/* Signal Amber / Gold firewall aura */}
@@ -237,9 +237,9 @@ export function ContainmentShield({
             />
             {/* HUD Status Pill */}
             <rect
-              x="52"
+              x="54"
               y="33"
-              width="52"
+              width="48"
               height="10"
               rx="2.5"
               fill="#18181B"
@@ -250,9 +250,9 @@ export function ContainmentShield({
             />
             <text
               x="78"
-              y="40.2"
+              y="40"
               fill="#EF4444"
-              fontSize="4.8"
+              fontSize="4.4"
               fontWeight="700"
               textAnchor="middle"
               letterSpacing="0.08em"
