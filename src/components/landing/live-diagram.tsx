@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Bot, ShieldHalf, TerminalSquare, FolderLock, Network, Bug, ArrowRight } from "lucide-react";
+import { Bot, TerminalSquare, FolderLock, Network, Bug, ArrowRight } from "lucide-react";
+import { ContainmentShield } from "@/components/brand/containment-shield";
 import { evaluateAction } from "@/lib/guard/engine";
 import { DEFAULT_POLICY, type GuardAction } from "@/lib/guard/types";
 import { cn } from "@/lib/utils";
@@ -157,7 +158,7 @@ export function LiveDiagram() {
 
       <div className="mt-5 grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
         <div className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/8 px-3 py-2">
-          <ShieldHalf className="size-4 text-primary" />
+          <ContainmentShield size={18} variant="logo" />
           <span className="label-mono">Containment engine</span>
         </div>
         <div className="space-y-1.5">

@@ -44,10 +44,10 @@ const VECTORS = [
 ];
 
 const STEPS = [
-  { icon: GitBranch, title: "Point it at a repo", body: "Containment reads the code and drafts the policy." },
-  { icon: Shield, title: "Watch a live run", body: "A real agent run, every action judged as it happens." },
-  { icon: ScrollText, title: "Review the trail", body: "Every verdict, rule and policy version, exportable as PDF." },
-  { icon: PlugZap, title: "Connect production", body: "One HTTP call in front of your real agent's tools." },
+  { icon: GitBranch, title: "Point it at a repo", body: "Containment spins up a dedicated, locked-down Kubernetes sandbox pod." },
+  { icon: Shield, title: "Watch a live run", body: "The agent roams inside its container. Every action judged in real-time." },
+  { icon: ScrollText, title: "Review the trail", body: "Real container stdout/stderr, policy versions, exportable as audit PDF." },
+  { icon: PlugZap, title: "Connect production", body: "One HTTP call in front of your agent's tools to block escapes in production." },
 ];
 
 function Landing() {
@@ -71,13 +71,13 @@ function Landing() {
         <div className="pointer-events-none absolute -right-24 top-10 size-[420px] animate-aura rounded-full bg-primary/12 blur-3xl" />
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 lg:grid-cols-[1.05fr_0.95fr] lg:py-28">
           <div className="animate-rise">
-            <span className="label-mono">Agent containment layer</span>
+            <span className="label-mono">Kubernetes Sandbox & Action Firewall</span>
             <h1 className="mt-4 text-5xl font-semibold leading-[1.03] md:text-6xl">
               Your agent asks first.
               <span className="block text-primary">The escape never runs.</span>
             </h1>
             <p className="mt-5 max-w-lg text-lg text-muted-foreground">
-              One call before every command, file, request and tool call — answered with allow, hold or deny.
+              Spin up hardened, non-root Kubernetes sandbox containers on demand. Intercept every tool call, file write, shell command and network request before execution.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg">
@@ -91,15 +91,9 @@ function Landing() {
             </div>
           </div>
 
-          <div className="flex justify-center" style={{ perspective: "1200px" }}>
+          <div className="flex justify-center">
             <div className="relative">
-              <div
-                className="w-52 sm:w-64 lg:w-72"
-                style={{
-                  transform: "rotateX(55deg) rotateZ(-45deg)",
-                  transformStyle: "preserve-3d",
-                }}
-              >
+              <div className="w-56 sm:w-64 lg:w-72">
                 <ContainmentShield variant="hero" />
               </div>
 
