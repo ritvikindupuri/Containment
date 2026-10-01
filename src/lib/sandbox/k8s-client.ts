@@ -53,7 +53,7 @@ export class KubernetesSandboxClient {
     } catch (errWin: any) {
       try {
         const res = await execAsync(
-          `wsl -d Ubuntu-26.04 -- bash -c "~/.local/bin/kubectl ${args.replace(/"/g, '\\"')}"`,
+          `wsl -d Ubuntu-26.04 kubectl ${args}`,
           { timeout: 15_000 },
         );
         return { stdout: res.stdout, stderr: res.stderr, exitCode: 0 };
