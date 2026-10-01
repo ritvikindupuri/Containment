@@ -9,7 +9,6 @@ import {
   ScrollText,
   PlugZap,
   Shield,
-  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LiveDiagram } from "@/components/landing/live-diagram";
@@ -92,33 +91,8 @@ function Landing() {
           </div>
 
           <div className="flex justify-center">
-            <div className="relative">
-              <div className="w-56 sm:w-64 lg:w-72">
-                <ContainmentShield variant="hero" />
-              </div>
-
-              {/* AI agent breaking out of the shield */}
-              <svg
-                aria-hidden
-                className="pointer-events-none absolute right-8 top-4 size-24 text-destructive"
-                viewBox="0 0 100 100"
-                fill="none"
-              >
-                <path
-                  d="M10 90 C 32 76, 54 54, 76 24"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeDasharray="5 6"
-                  strokeLinecap="round"
-                  opacity="0.7"
-                />
-              </svg>
-              <div className="absolute right-4 top-0 flex size-11 items-center justify-center rounded-xl border border-destructive/50 bg-card text-destructive shadow-lg sm:size-12">
-                <Bot className="size-6" />
-              </div>
-              <span className="absolute right-0 top-14 rounded-md border border-destructive/40 bg-card/90 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-destructive">
-                escape attempt
-              </span>
+            <div className="w-64 sm:w-72 lg:w-80">
+              <ContainmentShield variant="hero" />
             </div>
           </div>
         </div>
