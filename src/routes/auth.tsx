@@ -162,27 +162,6 @@ function AuthPage() {
               Continue with Google
             </Button>
 
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full border border-primary/20 text-xs font-medium"
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  await supabase.auth.signInWithPassword({
-                    email: "developer@containment.dev",
-                    password: "containment-demo",
-                  });
-                  navigate({ to: destination, replace: true });
-                } finally {
-                  setBusy(false);
-                }
-              }}
-              disabled={busy}
-            >
-              Enter Sandbox Workspace (1-Click)
-            </Button>
-
             <p className="text-center text-sm text-muted-foreground">
               {mode === "signin" ? "No workspace yet?" : "Already have an account?"}{" "}
               <button
