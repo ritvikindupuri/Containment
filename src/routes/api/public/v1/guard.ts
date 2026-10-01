@@ -28,9 +28,13 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           return json({ error: "missing_key", message: "Send your key in the x-guard-key header." }, 401);
         }
 
+        const rawBody = await request.json();
+        const shouldExecute = Boolean(rawBody?.execute);
+        const sessionId = String(rawBody?.session_id || rawBody?.sessionId || "api-session").slice(0, 64);
+
         let parsed: GuardAction;
         try {
-          parsed = actionSchema.parse(await request.json()) as GuardAction;
+          parsed = actionSchema.parse(rawBody) as GuardAction;
         } catch (error) {
           return json(
             { error: "invalid_action", message: error instanceof Error ? error.message : "Invalid action payload." },
@@ -81,13 +85,39 @@ export const Route = createFileRoute("/api/public/v1/guard")({
 
         const result = evaluateAction(parsed, policy);
 
+        // Optional Kubernetes Sandbox execution when allowed
+        let sandboxExecution: Record<string, unknown> | undefined;
+        if (shouldExecute) {
+          if (result.verdict === "allow" || (!result.enforced && row.mode === "monitor")) {
+            const { k8sSandboxClient } = await import("@/lib/sandbox/k8s-client");
+            const execResult = await k8sSandboxClient.executeInPod(sessionId, parsed, policy);
+            sandboxExecution = {
+              executed: true,
+              exit_code: execResult.exitCode,
+              stdout: execResult.stdout,
+              stderr: execResult.stderr,
+              pod_name: execResult.podName,
+              namespace: execResult.namespace,
+              duration_ms: execResult.durationMs,
+              network_policy_passed: execResult.networkPolicyPassed,
+            };
+          } else {
+            sandboxExecution = {
+              executed: false,
+              reason: result.verdict === "deny"
+                ? "Quarantined by Containment: Action scored above deny threshold and was blocked before entering the Kubernetes sandbox."
+                : "Paused for human review: Action held in approval queue.",
+            };
+          }
+        }
+
         await supabaseAdmin.from("decisions").insert({
           user_id: keyRow.data.user_id,
           policy_id: row.id,
           policy_version: row.version,
           api_key_id: keyRow.data.id,
           agent_id: parsed.agent_id ?? null,
-          source: "api",
+          source: shouldExecute ? "api_k8s_sandbox" : "api",
           action_type: result.action_type,
           verdict: result.intended_verdict,
           risk_score: result.risk_score,
@@ -95,6 +125,9 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           reasons: JSON.parse(JSON.stringify(result.findings)),
           action: JSON.parse(JSON.stringify(parsed)),
           approval_state: result.verdict === "needs_approval" ? "pending" : "not_required",
+          resolution_note: sandboxExecution?.["executed"]
+            ? `Executed in K8s Sandbox Pod ${sandboxExecution["pod_name"]} (exit ${sandboxExecution["exit_code"]})`
+            : null,
         });
 
         await supabaseAdmin
@@ -111,6 +144,7 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           summary: result.summary,
           findings: result.findings,
           policy_version: row.version,
+          ...(sandboxExecution ? { sandbox_execution: sandboxExecution } : {}),
         });
       },
     },

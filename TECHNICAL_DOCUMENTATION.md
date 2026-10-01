@@ -23,6 +23,7 @@
    - [5.6 Human-in-the-Loop Approval Queue & AI Reviewer](#56-human-in-the-loop-approval-queue-&-ai-reviewer)
    - [5.7 Security Audit Log, Reporting & PDF Export](#57-security-audit-log-reporting-&-pdf-export)
    - [5.8 Advisory AI Risk Layer](#58-advisory-ai-risk-layer)
+   - [5.9 Kubernetes Sandbox Runtime & Defense-in-Depth](#59-kubernetes-sandbox-runtime-&-defense-in-depth)
 6. [Database Schema & Integration Details](#6-database-schema-&-integration-details)
 7. [Conclusion](#7-conclusion)
 
@@ -96,8 +97,14 @@ graph TD
         REST_API[Public Guard REST API v1]:::api
     end
 
+    subgraph K8s Tier [Kubernetes Sandbox Runtime]
+        K8S_SRV[Sandbox Orchestrator - k8s-sandbox.server.ts]:::server
+        K8S_POD[Isolated Sandbox Pod - UID 1000, ReadOnlyRootFS, Drop ALL]:::db
+        K8S_NET[NetworkPolicy - Egress Restricted & Metadata Blocked]:::db
+    end
+
     %% Client Interactions
-    UI --> |Fetch Policy, Keys, Logs| FN
+    UI --> |Fetch Policy, Keys, Logs, Sandbox Status| FN
     FN --> GE
     PLAY --> |Evaluate Sandbox Actions| FN
     LIVE --> |Launch Server-Side Run Simulation| FN
@@ -105,10 +112,14 @@ graph TD
     %% Server Functions Internal Orchestration
     FN --> |Read Context / Draft Run Plan| AP
     FN --> |Run AI recommendation on Hold| RE
+    FN --> |Dispatch ALLOWED Actions| K8S_SRV
+    K8S_SRV --> |Execute in Pod| K8S_POD
+    K8S_SRV --> |Enforce Egress Policy| K8S_NET
 
     %% API Integrations
     P_AGENT --> |POST /api/public/v1/guard| REST_API
     REST_API --> |Fetch Key & Enforce Policy| GE
+    REST_API --> |Optional: execute: true when ALLOWED| K8S_SRV
     REST_API --> |Insert Decision & Audit| DB_DEC
 
     %% Server to Database Interconnect
@@ -119,14 +130,18 @@ graph TD
     REST_API --> |Verify Key Hash| DB_KEYS
 
 ```
-<p align="center"><em>Figure 1: System Architecture Diagram of the Containment Platform</em></p>
+<p align="center"><em>Figure 1: System Architecture Diagram of the Containment Platform with Kubernetes Sandbox Runtime</em></p>
 
 ### System Components & Data Flows
 
 1. **Client Tier**: Fully interactive frontend utilizing TanStack React Router. React Query manages real-time caching, UI revalidations, and polling intervals (such as updating the dashboard decisions list every 15 seconds to sync incoming API logs).
 2. **Server Tier**: Powered by Nitro and React Start. Rather than decoupling server logic into a separate repository, server functions run directly in a type-safe context, interacting directly with database clients and AI gateways.
 3. **Guard Engine (`engine.ts`)**: A completely stateless, deterministic code compiler/regex matching matrix. It is the heart of the system, written purely in TypeScript for ultra-low latency execution under 10ms.
-4. **Supabase Managed Services**:
+4. **Kubernetes Sandbox Tier (`src/lib/sandbox/`)**:
+   - **`k8s-client.ts`**: Connects via in-cluster ServiceAccounts, kubeconfig, or API endpoints. Features an automatic local emulation engine for zero-dependency local testing.
+   - **`k8s-sandbox.server.ts`**: Dispatches allowed actions into hardened pods running under **Restricted Pod Security Standards** (non-root UID 1000, read-only rootfs, dropped capabilities `ALL`, dynamic egress `NetworkPolicy`, optional `gVisor` runsc).
+   - **Execution Telemetry**: Captures exit codes, stdout, stderr, execution duration, and resource utilization for UI streaming and PDF reports.
+5. **Supabase Managed Services**:
    - **`policies` & `policy_versions`**: Store user-configured settings and complete snapshot histories, ensuring that changing a policy never alters the historical context of past logs.
    - **`api_keys`**: Store prefixes and cryptographic SHA-256 hashes of agent API keys (`agk_live_...`), ensuring that plain-text API keys are never exposed in database backups.
    - **`decisions`**: Logs every evaluation (allow, hold, deny, risk score, triggered rules, and raw JSON payloads) for immediate visualization.
@@ -158,16 +173,22 @@ graph TD
         SUGGESTION[Policy Suggester: Tailored Allow/Blocklists]:::core
     end
 
-    subgraph Live Run [3. Step-by-Step Simulation Engine]
+    subgraph Live Run [3. Step-by-Step Agent Run Engine]
         EXEC_LOOP[Execution Loop Iterator]:::step
         CALL_GUARD[Enforce Core Guard Engine]:::step
         DECIDE{Verdict Check}:::step
-        VAL_ALLOW[ALLOW: Proceed to Next Step]:::step
+        VAL_ALLOW[ALLOW: Action Approved]:::step
         VAL_HOLD[HOLD: Pause Run & Await Human]:::step
-        VAL_DENY[DENY: Block & Halt Run Segment]:::step
+        VAL_DENY[DENY: Block & Halt Execution]:::step
     end
 
-    subgraph User Approval [4. Human-In-The-Loop Interface]
+    subgraph Sandbox Runtime [4. Hardened Kubernetes Sandbox Runtime]
+        K8S_DISPATCH[Pod Dispatcher - k8s-sandbox.server.ts]:::core
+        K8S_EXEC[Authentic Pod Exec: UID 1000, ReadOnlyRootFS, Drop ALL]:::core
+        K8S_TELEMETRY[Telemetry Collector: Stdout, Stderr, Exit Code]:::core
+    end
+
+    subgraph User Approval [5. Human-In-The-Loop Interface]
         QA[Approval Queue Dashboard Card]:::flow
         COGNITIVE[AI Assistant Reviewer: review.server.ts]:::flow
         OPERATOR[Human Operator Decision]:::flow
@@ -181,7 +202,7 @@ graph TD
     MODEL --> |Draft Policy Suggestion| SUGGESTION
 
     %% Loop Iterations
-    PLAN --> |Initiate Demo Simulation Run| EXEC_LOOP
+    PLAN --> |Initiate Agent Run| EXEC_LOOP
     EXEC_LOOP --> |Propose Action| CALL_GUARD
     CALL_GUARD --> DECIDE
 
@@ -189,15 +210,19 @@ graph TD
     DECIDE --> |Needs Approval| VAL_HOLD
     DECIDE --> |Deny| VAL_DENY
 
-    VAL_ALLOW --> |Auto-continue after 260ms delay| EXEC_LOOP
+    VAL_ALLOW --> |Dispatch to Sandbox Pod| K8S_DISPATCH
+    K8S_DISPATCH --> K8S_EXEC
+    K8S_EXEC --> K8S_TELEMETRY
+    K8S_TELEMETRY --> |Stream Live Stdout/Stderr & Status| EXEC_LOOP
+
     VAL_HOLD --> |Publish to DB| QA
     QA --> |Analyze Context & Suggest Action| COGNITIVE
     COGNITIVE --> |Recommend Approve/Reject| OPERATOR
-    OPERATOR --> |Approved| EXEC_LOOP
-    OPERATOR --> |Rejected| VAL_DENY
+    OPERATOR --> |Approved: Dispatch| K8S_DISPATCH
+    OPERATOR --> |Rejected: Terminate| VAL_DENY
 
 ```
-<p align="center"><em>Figure 2: Containment Setup and Demonstration Agent Architecture Diagram</em></p>
+<p align="center"><em>Figure 2: Containment Setup and Demonstration Agent Architecture Diagram with Kubernetes Sandbox Runtime</em></p>
 
 ### The Autonomous Ingestion and Evaluation Lifecycle
 
@@ -331,6 +356,35 @@ The advisory AI risk layer sits **on top of** that engine and adds the nuance ru
 * **Surfaces**: the console policy test runner (`AiSecondOpinion` under each verdict) and every card in the approval queue.
 
 **Failure model**: rate limits (429), exhausted credits (402) and unparseable model output surface as inline errors on the card. The deterministic verdict is unaffected in every case — an unavailable AI layer degrades the product to "rule-based only", never to "unprotected".
+
+---
+
+### 5.9 Kubernetes Sandbox Runtime & Defense-in-Depth
+
+Containment upgrades traditional single-tier sandboxing by establishing a **two-tier defense-in-depth security model**:
+
+1. **Pre-Execution Guard Firewall (Tier 1)**:
+   - Evaluates commands, file read/write operations, network queries, and tool calls in memory under 10ms.
+   - Quarantines prompt injections, reverse shell attempts (`/dev/tcp`), and privileged volume mounts before execution.
+
+2. **Hardened Kubernetes Sandbox Runtime (Tier 2)**:
+   - For all operations receiving an `ALLOW` verdict (or signed off by a human in the approval queue), execution is dispatched directly into an isolated Kubernetes Pod in the `containment-sandbox` namespace.
+   - **Restricted Pod Security Standard (`PSS: restricted`)**:
+     - Non-root user execution (`runAsNonRoot: true`, UID 1000).
+     - Read-only root filesystem (`readOnlyRootFilesystem: true`); prevents modifying runtime binaries or dropping persistence backdoors.
+     - Linux Capabilities dropped completely (`drop: ["ALL"]`).
+     - Explicit denial of privilege escalation (`allowPrivilegeEscalation: false`).
+     - Seccomp profile configured to `RuntimeDefault`.
+     - RuntimeClass support for user-space virtualization kernels: **gVisor (`runsc`)** or **Kata Containers**.
+   - **Dynamic Network Isolation (`NetworkPolicy`)**:
+     - Default deny-all ingress.
+     - Egress restricted strictly to in-cluster DNS (`kube-dns` on port 53) and policy `allowed_hosts`.
+     - Explicit egress blocks on Cloud Metadata IPs (`169.254.169.254`) and internal RFC1918 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`).
+   - **Ephemeral Workspace & Quotas**:
+     - EmptyDir volumes with strict size limits on `/workspace` (2Gi) and `/tmp` (1Gi).
+     - ResourceQuota limiting overall CPU and memory footprints.
+   - **Real-Time Telemetry & Console Streaming**:
+     - Standard output (stdout), error output (stderr), exit code, execution latency, and resource metrics are streamed back to the Live Run interface, persistent audit logs, and downloadable PDF reports.
 
 ---
 

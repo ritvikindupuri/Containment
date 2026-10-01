@@ -9,6 +9,7 @@ import {
   PlayCircle,
   Lock,
   History,
+  Boxes,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -102,6 +103,18 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <History className="size-4" />
               <span className="hidden sm:inline">History</span>
+            </Link>
+            <Link
+              to="/sandbox"
+              className={cn(
+                "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+                pathname.startsWith("/sandbox")
+                  ? "bg-secondary text-secondary-foreground"
+                  : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
+              )}
+            >
+              <Boxes className="size-4 text-primary" />
+              <span className="hidden sm:inline">K8s Sandbox</span>
             </Link>
           </nav>
           <div className="ml-auto">

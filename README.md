@@ -10,6 +10,7 @@ For a comprehensive technical deep-dive into the security models, core component
 ## Key Features
 
 * **Interactive Sandbox Simulation**: Input a public GitHub repository URL, instantly clone and map its code structure, and review a tailored step-by-step action plan displaying both standard operations and realistic sandbox-escape attempts.
+* **Hardened Kubernetes Sandbox Runtime (Defense in Depth)**: Authorized agent operations execute inside an isolated Kubernetes Sandbox Pod running under Kubernetes **Restricted Pod Security Standards** (`pod-security.kubernetes.io/enforce: restricted`), dropping all Linux capabilities (`drop: [ALL]`), read-only root filesystems, non-root user UID 1000, dynamic egress `NetworkPolicy` isolation, and optional `gVisor` (`runsc`) / `Kata Containers` microVM isolation.
 * **Deterministic Guard Engine**: Uses command normalization, relative path-traversal resolution, DNS rebinding detection, and context-aware prompt-injection scanning to calculate a dynamic risk score under 10ms.
 * **Dynamic Security Policy & Version Control**: Instantly toggle protection vectors (Command Execution, Filesystem Access, Network Egress, Prompt Injection), set custom risk thresholds, configure domain allowlists, and track complete policy version histories.
 * **Advisory AI Risk Layer**: Deterministic rules stay the enforcer; on top of them, an optional AI second opinion scores each logged action, explains it in plain English, and flags when it *disagrees* with the rule-based verdict — surfacing missing rules and false positives without ever changing a decision.
@@ -38,10 +39,81 @@ This sample audit report showcases:
 
 ## System Architecture
 
-Containment uses a layered architecture to secure agent execution environments. The web application is built on TanStack React Start, and the core Guard Engine runs statelessly on an edge-ready Nitro server. The application state, policy parameters, and security logs are managed by Supabase PostgreSQL database tables.
+Containment employs a two-tier **Defense-in-Depth** architecture separating in-memory policy enforcement from container sandbox execution. The core Guard Engine evaluates actions in single-digit milliseconds, while authorized operations are dispatched directly into an isolated Kubernetes Sandbox Pod.
 
-![Containment System Architecture](https://i.imgur.com/dO3sqcK.png)
-<p align="center"><em>Figure 1: Containment Real-Time Protection System Architecture Diagram</em></p>
+```mermaid
+graph TD
+    %% Styling
+    classDef client fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
+    classDef firewall fill:#7c2d12,stroke:#f97316,stroke-width:2px,color:#f8fafc;
+    classDef server fill:#0f172a,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
+    classDef k8s fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef db fill:#0f291e,stroke:#059669,stroke-width:2px,color:#f8fafc;
+    classDef halt fill:#450a0a,stroke:#ef4444,stroke-width:2px,color:#f8fafc;
+
+    subgraph ClientTier [Client & Integration Tier]
+        AGENT[Autonomous AI Agent]:::client
+        UI[TanStack React UI / Console / Live Run]:::client
+        INGEST[Repo Context Ingest & Plan]:::client
+    end
+
+    subgraph GuardTier [Tier 1: Pre-Execution Guard Firewall]
+        GATEWAY[Public Guard REST API / Server Functions]:::server
+        ENGINE[Deterministic Guard Engine - engine.ts]:::firewall
+        POLICY[Workspace Security Policy & Versioning]:::server
+        ADVISOR[Advisory LLM Risk Layer]:::server
+        APPROVAL[Human-in-the-Loop Review Queue]:::server
+    end
+
+    subgraph K8sTier [Tier 2: Hardened Kubernetes Sandbox Runtime]
+        ORCH[Sandbox Orchestrator - k8s-sandbox.server.ts]:::server
+        POD[Isolated Sandbox Pod - UID 1000]:::k8s
+        PSS[Restricted PSS: ReadOnlyRootFS, Drop ALL Caps]:::k8s
+        NETPOL[Dynamic NetworkPolicy: Egress Restricted & Metadata Blocked]:::k8s
+        VOLS[Ephemeral Volumes: /workspace 2Gi & /tmp 1Gi]:::k8s
+        TELEMETRY[Real-Time Execution Telemetry: Stdout, Stderr, Exit Code]:::k8s
+    end
+
+    subgraph DatabaseTier [Supabase Managed Services]
+        DB_POL[Policies & Snapshot Versions]:::db
+        DB_DEC[Decisions Ledger Table]:::db
+        DB_KEYS[Hashed API Keys Table]:::db
+    end
+
+    subgraph Quarantine [Quarantine Tier]
+        BLOCK[Quarantined: Zero K8s Execution]:::halt
+    end
+
+    %% Client Interactions
+    AGENT --> |1. Propose Action| GATEWAY
+    UI --> |Launch Live Run / Test Actions| GATEWAY
+    INGEST --> |Suggested Rules| POLICY
+
+    %% Guard Evaluation
+    GATEWAY --> ENGINE
+    ENGINE --> POLICY
+    ENGINE --> |DENY: Threat Detected| BLOCK
+    ENGINE --> |HOLD: Borderline Action| APPROVAL
+    APPROVAL --> |AI Second Opinion| ADVISOR
+    APPROVAL --> |Rejected| BLOCK
+
+    %% Kubernetes Sandbox Dispatch
+    ENGINE --> |ALLOW: Safe Action| ORCH
+    APPROVAL --> |Approved by Human| ORCH
+
+    ORCH --> |2. Execute in Pod| POD
+    POD --- PSS
+    POD --- NETPOL
+    POD --- VOLS
+
+    %% Telemetry & Storage
+    POD --> |3. Stream Execution Results| TELEMETRY
+    TELEMETRY --> |4. Return Exit Code & Output| UI
+    TELEMETRY --> |Commit Audit Log| DB_DEC
+    GATEWAY --> |Verify Key Hash| DB_KEYS
+    GATEWAY --> |CRUD Policy| DB_POL
+```
+<p align="center"><em>Figure 1: Containment Real-Time Protection & Hardened Kubernetes Sandbox System Architecture Diagram</em></p>
 
 ### Flow-by-Flow Explanation
 
@@ -111,10 +183,40 @@ The final stage yields actionable reports and diagnostic telemetry for downstrea
 * **AI & Planning Model**: [OpenAI GPT-5.6-sol](https://openai.com/) (integrated via the secure Lovable AI Gateway)
 * **Frontend Framework**: [React 19](https://react.dev/) with [TypeScript](https://www.typescriptlang.org/)
 * **Routing & Meta-framework**: [TanStack Start](https://tanstack.com/start/latest) / [TanStack React Router](https://tanstack.com/router/latest)
+* **Container Sandbox & Orchestration**: [Kubernetes](https://kubernetes.io/) with Pod Security Standards (Restricted), [gVisor](https://gvisor.dev/) (`runsc`), and dynamic `NetworkPolicy` egress isolation
 * **CSS & Design**: [Tailwind CSS v4](https://tailwindcss.com/) with [Shadcn UI](https://ui.shadcn.com/) and [Lucide Icons](https://lucide.dev/)
 * **Database & Auth**: [Supabase](https://supabase.com/) (Postgres DB, GoTrue Authentication, Row-Level Security)
 * **PDF Engine**: [jsPDF](https://github.com/parallax/jsPDF) for generating printable reports
 * **Deployment & Runtime**: [Vite](https://vite.dev/) and [Nitro Server](https://nitro.unjs.io/) (via Bun / Node.js)
+
+---
+
+## Kubernetes Sandbox Architecture (Defense in Depth)
+
+Containment implements a two-tier **Defense-in-Depth** model separating policy enforcement from container execution:
+
+1. **Tier 1: Pre-Execution Action Guard Firewall (<10ms)**
+   - Intercepts proposed agent shell commands, file accesses, outbound network requests, and tool calls.
+   - Evaluates commands against regex and normalization engines to catch escape tricks (`bash -i >& /dev/tcp/...`, `/proc/1/root`, `curl|sh`, etc.).
+   - Actions judged dangerous (`DENY`) or borderline (`NEEDS_APPROVAL`) are quarantined immediately and **never dispatched to Kubernetes**.
+
+2. **Tier 2: Hardened Kubernetes Sandbox Pod Runtime**
+   - Verified safe actions (`ALLOW`) or human-approved operations are dispatched to an isolated Kubernetes Sandbox Pod in the `containment-sandbox` namespace.
+   - **Pod Security Standards (Restricted)**:
+     - All Linux capabilities dropped (`drop: ["ALL"]`)
+     - Read-only root filesystem (`readOnlyRootFilesystem: true`)
+     - Non-root user execution (`runAsNonRoot: true`, UID 1000)
+     - Privilege escalation explicitly disabled (`allowPrivilegeEscalation: false`)
+     - Seccomp profile enforced (`RuntimeDefault`)
+     - Kernel isolation via **gVisor (`runsc`)** or **Kata Containers**
+   - **Egress Network Isolation**:
+     - Kubernetes `NetworkPolicy` isolates each sandbox pod, denying incoming ingress and restricting egress solely to cluster DNS and policy `allowed_hosts`.
+     - Requests to AWS/GCP/Azure Cloud Metadata IPs (`169.254.169.254`) and internal RFC1918 subnets are blocked at the network interface.
+   - **Dual-Mode Execution**:
+     - Works natively with live Kubernetes clusters (in-cluster ServiceAccount, kubeconfig, or API token).
+     - Includes a built-in, high-fidelity Kubernetes Sandbox Emulator for instant local development and offline demonstrations.
+
+Production Kubernetes deployment manifests and setup guides are located in the [`k8s/`](./k8s) directory.
 
 ---
 

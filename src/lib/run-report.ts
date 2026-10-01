@@ -16,6 +16,9 @@ export type RunReportInput = {
   operator: string;
   startedAt: string | null;
   finishedAt: string | null;
+  k8sSandboxEnabled?: boolean;
+  k8sNamespace?: string;
+  k8sRuntimeClass?: string;
 };
 
 /* Print-safe palette that mirrors the console's graphite + signal amber. */
@@ -250,6 +253,12 @@ export function buildRunReport(input: RunReportInput): { blob: Blob; filename: s
     ["Report ID", doc.reportId],
     ["Prepared for", input.operator || "Containment workspace"],
     ["Repository", `${plan.repo.url}`],
+    [
+      "Execution runtime",
+      input.k8sSandboxEnabled !== false
+        ? `Kubernetes Sandbox (${input.k8sNamespace ?? "containment-sandbox"} · PSS: restricted · ${input.k8sRuntimeClass ?? "gVisor runsc"})`
+        : "Standard Container Simulation",
+    ],
     [
       "Repository profile",
       `${plan.repo.language ?? "language not detected"} · ${plan.repo.file_count} files · ${plan.repo.stars} stars · default branch ${plan.repo.default_branch}`,

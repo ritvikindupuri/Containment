@@ -15,13 +15,19 @@ import {
   ShieldAlert,
   ChevronDown,
   FileDown,
+  Boxes,
 } from "lucide-react";
 import { ingestRepo, type AgentRunPlan } from "@/lib/agent-run.functions";
 import { useRepoSession } from "@/lib/repo-session";
 import { evaluateAgentStep, getApproval, type ApprovalRow } from "@/lib/guard.functions";
+import { executeInKubernetesSandbox } from "@/lib/sandbox.functions";
+import { KubernetesSandboxHud } from "@/components/guard/k8s-sandbox-hud";
+import { KubernetesExecutionDrawer } from "@/components/guard/k8s-execution-drawer";
+import type { SandboxExecutionResult } from "@/lib/sandbox/types";
 import { ApprovalCard } from "@/components/guard/approval-card";
 import { VerdictBadge, RiskMeter } from "@/components/guard/verdict-badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -57,11 +63,15 @@ export function AgentRun() {
   const ingest = useServerFn(ingestRepo);
   const evaluate = useServerFn(evaluateAgentStep);
   const loadApproval = useServerFn(getApproval);
+  const executeK8s = useServerFn(executeInKubernetesSandbox);
 
   const { session, start, update } = useRepoSession();
   const [url, setUrl] = useState("");
   const [plan, setPlan] = useState<AgentRunPlan | null>(null);
   const [results, setResults] = useState<Record<number, StepResult>>({});
+  const [useK8sSandbox, setUseK8sSandbox] = useState(true);
+  const [k8sExecutions, setK8sExecutions] = useState<Record<number, SandboxExecutionResult>>({});
+  const [activePodName, setActivePodName] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [open, setOpen] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
@@ -75,6 +85,7 @@ export function AgentRun() {
       setPlan(value as AgentRunPlan);
       start(value as AgentRunPlan);
       setResults({});
+      setK8sExecutions({});
       setActiveIndex(null);
       setOpen(null);
       toast.success(`Agent cloned ${value.repo.owner}/${value.repo.repo} and planned ${value.steps.length} actions.`);
@@ -88,6 +99,7 @@ export function AgentRun() {
     setAwaiting(null);
     if (startIndex === 0) {
       setResults({});
+      setK8sExecutions({});
       setOpen(null);
       setStartedAt(new Date().toISOString());
       setFinishedAt(null);
@@ -108,9 +120,31 @@ export function AgentRun() {
           toast.warning("The agent is paused — this action needs your approval.");
           return;
         }
+
+        // When allowed (or in monitor mode), execute inside the Kubernetes Sandbox Pod
+        if (useK8sSandbox && (value.verdict === "allow" || (!value.enforced && value.policy_mode === "monitor"))) {
+          try {
+            const k8sRes = await executeK8s({
+              data: {
+                action: step.action,
+                sessionId: plan.repo.repo,
+              },
+            });
+            if (k8sRes.sandbox) {
+              setK8sExecutions((prev) => ({ ...prev, [index]: k8sRes.sandbox! }));
+            }
+            if (k8sRes.pod?.name) {
+              setActivePodName(k8sRes.pod.name);
+            }
+          } catch {
+            // Execution failed inside pod (e.g. read-only filesystem or timeout)
+          }
+        }
+
         await new Promise((resolve) => setTimeout(resolve, 260));
       }
       queryClient.invalidateQueries({ queryKey: ["decisions"] });
+      queryClient.invalidateQueries({ queryKey: ["k8s-sandbox-pods"] });
       setFinishedAt(new Date().toISOString());
       update({ live_run_done: true });
     } catch (error) {
@@ -139,6 +173,9 @@ export function AgentRun() {
         operator: data.user?.email ?? "Containment workspace",
         startedAt,
         finishedAt: finishedAt ?? (running ? null : startedAt),
+        k8sSandboxEnabled: useK8sSandbox,
+        k8sNamespace: "containment-sandbox",
+        k8sRuntimeClass: "gVisor runsc",
       });
       const href = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -208,6 +245,33 @@ export function AgentRun() {
 
       {plan ? (
         <>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
+              <div className="flex items-center gap-2">
+                <Boxes className="size-4 text-primary" />
+                <span className="text-xs font-semibold">Kubernetes Sandbox Execution</span>
+                <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-[10px] text-primary">
+                  Defense-in-Depth Active
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Execute safe actions in K8s pod:</span>
+                <Switch
+                  checked={useK8sSandbox}
+                  onCheckedChange={setUseK8sSandbox}
+                  aria-label="Toggle Kubernetes sandbox execution"
+                />
+              </div>
+            </div>
+
+            {useK8sSandbox && (
+              <KubernetesSandboxHud
+                activePodName={activePodName}
+                isExecuting={running}
+              />
+            )}
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
             <Card className={cn("border", sealed ? "border-success/40" : "border-destructive/50")}>
               <CardContent className="space-y-4 pt-6">
@@ -387,6 +451,24 @@ export function AgentRun() {
                             ))}
                           </ul>
                         ) : null}
+
+                        {useK8sSandbox && (
+                          <div className="mt-3">
+                            {result.verdict === "allow" || (!result.enforced && result.policy_mode === "monitor") ? (
+                              <KubernetesExecutionDrawer result={k8sExecutions[index] ?? null} />
+                            ) : result.verdict === "deny" ? (
+                              <KubernetesExecutionDrawer
+                                blocked={true}
+                                reason="Quarantined by Containment: Action scored above risk threshold and was dropped before reaching the Kubernetes sandbox container."
+                              />
+                            ) : (
+                              <KubernetesExecutionDrawer
+                                blocked={true}
+                                reason="Held for Human Approval: Action execution in Kubernetes Sandbox is paused awaiting review."
+                              />
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : null}
                   </div>

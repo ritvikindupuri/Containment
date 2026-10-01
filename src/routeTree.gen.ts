@@ -17,6 +17,7 @@ import { Route as AuthenticatedConsoleRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedPolicyRouteImport } from './routes/_authenticated/policy'
+import { Route as AuthenticatedSandboxRouteImport } from './routes/_authenticated/sandbox'
 import { Route as ApiPublicV1GuardRouteImport } from './routes/api/public/v1/guard'
 
 const IndexRoute = IndexRouteImport.update({
@@ -58,6 +59,11 @@ const AuthenticatedPolicyRoute = AuthenticatedPolicyRouteImport.update({
   path: '/policy',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSandboxRoute = AuthenticatedSandboxRouteImport.update({
+  id: '/sandbox',
+  path: '/sandbox',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiPublicV1GuardRoute = ApiPublicV1GuardRouteImport.update({
   id: '/api/public/v1/guard',
   path: '/api/public/v1/guard',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/policy': typeof AuthenticatedPolicyRoute
+  '/sandbox': typeof AuthenticatedSandboxRoute
   '/api/public/v1/guard': typeof ApiPublicV1GuardRoute
 }
 export interface FileRoutesByTo {
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/policy': typeof AuthenticatedPolicyRoute
+  '/sandbox': typeof AuthenticatedSandboxRoute
   '/api/public/v1/guard': typeof ApiPublicV1GuardRoute
 }
 export interface FileRoutesById {
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/policy': typeof AuthenticatedPolicyRoute
+  '/_authenticated/sandbox': typeof AuthenticatedSandboxRoute
   '/api/public/v1/guard': typeof ApiPublicV1GuardRoute
 }
 export interface FileRouteTypes {
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/history'
     | '/policy'
+    | '/sandbox'
     | '/api/public/v1/guard'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/history'
     | '/policy'
+    | '/sandbox'
     | '/api/public/v1/guard'
   id:
     | '__root__'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
     | '/_authenticated/policy'
+    | '/_authenticated/sandbox'
     | '/api/public/v1/guard'
   fileRoutesById: FileRoutesById
 }
@@ -195,6 +207,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPolicyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/sandbox': {
+      id: '/_authenticated/sandbox'
+      path: '/sandbox'
+      fullPath: '/sandbox'
+      preLoaderRoute: typeof AuthenticatedSandboxRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/v1/guard': {
       id: '/api/public/v1/guard'
       path: '/api/public/v1/guard'
@@ -211,6 +230,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedPolicyRoute: typeof AuthenticatedPolicyRoute
+  AuthenticatedSandboxRoute: typeof AuthenticatedSandboxRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -219,6 +239,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedPolicyRoute: AuthenticatedPolicyRoute,
+  AuthenticatedSandboxRoute: AuthenticatedSandboxRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
