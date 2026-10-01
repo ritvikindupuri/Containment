@@ -148,15 +148,10 @@ function Landing() {
             <span className="font-mono text-[11px]">K8s Cluster Active</span>
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
-            <Button asChild size="sm" variant="ghost" className="hidden sm:inline-flex text-muted-foreground hover:text-foreground">
-              <Link to="/sandbox">
-                <Boxes className="mr-1.5 size-3.5" /> Cluster Pods
-              </Link>
-            </Button>
+          <div className="ml-auto flex items-center">
             <Button asChild size="sm" className="glow-ring">
-              <Link to="/agent-run">
-                Launch Sandbox <ArrowRight className="ml-1.5 size-3.5" />
+              <Link to="/console">
+                Open App <ArrowRight className="ml-1.5 size-3.5" />
               </Link>
             </Button>
           </div>
@@ -183,16 +178,11 @@ function Landing() {
               Hardened, non-root Kubernetes sandbox containers on demand. Intercept every tool call, command, and egress packet in real time.
             </p>
 
-            {/* CTAs */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <Button asChild size="lg" className="h-11 px-6 font-medium shadow-lg hover:shadow-primary/20 transition-all">
-                <Link to="/agent-run">
-                  Start guarding actions <ArrowRight className="ml-2 size-4" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="h-11 px-5 border-border/80 hover:bg-surface/50">
-                <Link to="/sandbox">
-                  <Boxes className="mr-2 size-4 text-primary" /> Explore K8s Cluster
+            {/* CTA */}
+            <div className="pt-2">
+              <Button asChild size="lg" className="h-11 px-7 font-medium shadow-lg hover:shadow-primary/20 transition-all glow-ring">
+                <Link to="/console">
+                  Open Application <ArrowRight className="ml-2 size-4" />
                 </Link>
               </Button>
             </div>
@@ -351,8 +341,8 @@ function Landing() {
 
           <div className="mt-10">
             <Button asChild size="lg" className="h-11 px-8 font-medium glow-ring">
-              <Link to="/agent-run">
-                Launch Sandbox Now <ArrowRight className="ml-2 size-4" />
+              <Link to="/console">
+                Open Application <ArrowRight className="ml-2 size-4" />
               </Link>
             </Button>
           </div>
