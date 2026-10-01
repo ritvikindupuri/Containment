@@ -4,45 +4,46 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { completeOnboarding, getOnboarding } from "@/lib/session.functions";
-import { ArrowLeft, ArrowRight, ShieldHalf } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ContainmentShield } from "@/components/brand/containment-shield";
 
 const SLIDES = [
   {
-    title: "What Containment is",
-    body: "AI agents get tricked into escaping their sandbox: running a reverse shell, reading an SSH key, posting your environment variables to a stranger's server. Containment sits in front of your agent and checks every single action it wants to take, before it happens.",
+    title: "Action-Level Containment",
+    body: "Containment sits between your autonomous agent and execution environment, intercepting every command, file write, and network packet in real time.",
     points: [
-      "Your agent asks us first, over one HTTP call.",
-      "We answer in one word: allow, needs_approval or deny.",
-      "Your agent only acts on allow — so an escape never executes.",
+      "Agent requests verdict over a single HTTP endpoint",
+      "Instant deterministic decision: Allow, Hold, or Deny",
+      "Dangerous sandbox escapes are blocked before they run",
     ],
   },
   {
-    title: "Step 1 — Setup, from a repository",
-    body: "You do not configure anything by hand. Paste a public GitHub repo and we read its real files, then write both the security policy for that project and the exact actions worth testing against it. This guided setup happens inside Containment first.",
+    title: "1. Repo Setup & Policy Drafting",
+    body: "Point Containment at any repository. We automatically inspect its structure, draft an action-level security policy, and prepare test scenarios.",
     points: [
-      "You approve the suggested policy in one click (or edit it later).",
-      "You run a suggested test action and see the verdict immediately.",
-      "Only your production agent needs an agent key; the setup run does not.",
+      "One-click policy approval or custom rule tuning",
+      "Run sample actions to preview live firewall verdicts",
+      "Ephemeral pod workspace configured automatically",
     ],
   },
   {
-    title: "Step 2 — Live run, see it actually work",
-    body: "An AI agent works through its whole plan for that repo — ordinary build steps mixed with realistic escape attempts — and every action goes through your policy one at a time.",
+    title: "2. Live Agent Run & Telemetry",
+    body: "Watch an agent execute build commands and test actions inside its sandbox jail, with real-time stdout/stderr and intercept decisions.",
     points: [
-      "A sandbox seal shows SEALED, or ESCAPE GOT THROUGH if something unsafe ran.",
-      "Risky actions are blocked; borderline ones pause and wait for you.",
-      "You can download a dated, print-ready PDF report of the run.",
+      "Visual sandbox seal: Active vs Quarantined",
+      "Automatic block for reverse shells & metadata exfiltration",
+      "Exportable, signed cryptographic audit reports",
     ],
   },
   {
-    title: "Step 3 — Audit and approvals",
-    body: "Everything is logged permanently. Actions that need a human wait in an approval queue where an AI reviewer explains the risk and recommends releasing or holding them. The policy itself is written and versioned by the agent, so there is no rulebook to maintain by hand.",
+    title: "3. Audit, Approvals & K8s Sandbox",
+    body: "Review approval queues with AI risk analysis. Complete your run to unlock live in-pod Kubernetes container inspections and telemetry.",
     points: [
-      "Every decision records the policy version that ruled it.",
-      "Each policy save creates a new version with your change note.",
-      "Steps stay locked until the step before is finished, so you cannot get lost.",
+      "AI second opinions on high-risk borderline actions",
+      "Immutable decision history with policy version stamps",
+      "K8s Sandbox unlocks after completing your first agent run",
     ],
   },
 ];
@@ -66,7 +67,6 @@ export function WelcomeTour() {
     enabled: hasSession === true,
   });
 
-
   // The walkthrough is tied to the ACCOUNT, so a returning user who already
   // finished setup never sees it again — on any browser or device.
   useEffect(() => {
@@ -86,8 +86,8 @@ export function WelcomeTour() {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-background/90 p-4 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-lg border border-border bg-card p-6 shadow-lg">
-        <div className="flex items-center gap-2">
-          <ShieldHalf className="size-5 text-primary" />
+        <div className="flex items-center gap-2.5">
+          <ContainmentShield size={20} variant="logo" />
           <span className="label-mono">
             Welcome — {index + 1} of {SLIDES.length}
           </span>

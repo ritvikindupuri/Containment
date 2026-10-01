@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -22,6 +22,7 @@ import { AppShell } from "@/components/guard/app-shell";
 import { KubernetesSandboxHud } from "@/components/guard/k8s-sandbox-hud";
 import { KubernetesExecutionDrawer } from "@/components/guard/k8s-execution-drawer";
 import { VerdictBadge, RiskMeter } from "@/components/guard/verdict-badge";
+import { useFlowProgress } from "@/lib/flow";
 import {
   getActiveSandboxPods,
   getSandboxClusterStatus,
@@ -143,6 +144,36 @@ function SandboxPage() {
       queryClient.invalidateQueries({ queryKey: ["k8s-cluster-status"] });
     },
   });
+
+  const { stages, loading: flowLoading } = useFlowProgress();
+  const sandboxStage = stages.find((s) => s.key === "sandbox");
+  const isLocked = !flowLoading && sandboxStage && !sandboxStage.unlocked;
+
+  if (isLocked) {
+    return (
+      <AppShell>
+        <div className="mx-auto max-w-xl py-16">
+          <Card className="border-border/60 bg-card/60 backdrop-blur p-8 text-center shadow-lg">
+            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl border border-warning/30 bg-warning/10 text-warning">
+              <Lock className="size-6" />
+            </div>
+            <h2 className="text-xl font-semibold tracking-tight">Kubernetes Sandbox Locked</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              {sandboxStage.lockedHint || "Complete an agent run first in step 02 to unlock in-pod container execution and real-time pod telemetry."}
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <Button asChild>
+                <Link to="/agent-run">
+                  <Play className="mr-2 size-4" />
+                  Go to Live Agent Run
+                </Link>
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>

@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
 
 interface ContainmentShieldProps {
-  className?: string;
-  size?: number | string;
-  variant?: "logo" | "hero";
+  className?: string | undefined;
+  size?: number | string | undefined;
+  variant?: "logo" | "hero" | undefined;
 }
 
 /**

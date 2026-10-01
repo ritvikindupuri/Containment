@@ -1,10 +1,8 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  ShieldHalf,
   LayoutDashboard,
   KeyRound,
-
   LogOut,
   PlayCircle,
   Lock,
@@ -24,6 +22,7 @@ const ICONS: Record<StageKey, typeof KeyRound> = {
   setup: KeyRound,
   live_run: PlayCircle,
   audit: LayoutDashboard,
+  sandbox: Boxes,
 };
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -69,7 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     className="flex cursor-not-allowed items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground/50"
                   >
                     <Lock className="size-3.5" />
-                    <span className="font-mono text-[11px]">{stage.step}</span>
+                    <span className="font-mono text-[11px]">{String(stage.step).padStart(2, "0")}</span>
                     <span className="hidden sm:inline">{stage.label}</span>
                   </button>
                 );
@@ -87,7 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   )}
                 >
                   <Icon className="size-4" />
-                  <span className="font-mono text-[11px]">{stage.step}</span>
+                  <span className="font-mono text-[11px]">{String(stage.step).padStart(2, "0")}</span>
                   <span className="hidden sm:inline">{stage.label}</span>
                   {badge}
                 </Link>
@@ -104,18 +103,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <History className="size-4" />
               <span className="hidden sm:inline">History</span>
-            </Link>
-            <Link
-              to="/sandbox"
-              className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
-                pathname.startsWith("/sandbox")
-                  ? "bg-secondary text-secondary-foreground"
-                  : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
-              )}
-            >
-              <Boxes className="size-4 text-primary" />
-              <span className="hidden sm:inline">K8s Sandbox</span>
             </Link>
           </nav>
           <div className="ml-auto flex items-center gap-2">

@@ -5,14 +5,14 @@ import { useRepoSession } from "@/lib/repo-session";
 import { useHasSession } from "@/lib/use-auth-session";
 
 
-/** The three stages of the app, in the order a company actually rolls this out. */
-export type StageKey = "setup" | "live_run" | "audit";
+/** The stages of the app, in the order a company rolls this out. */
+export type StageKey = "setup" | "live_run" | "audit" | "sandbox";
 
 export type Stage = {
   key: StageKey;
   step: number;
   label: string;
-  to: "/console" | "/agent-run" | "/dashboard";
+  to: "/console" | "/agent-run" | "/dashboard" | "/sandbox";
   title: string;
   body: string;
   cta: string;
@@ -91,6 +91,18 @@ export function useFlowProgress() {
       unlocked: runDone,
       done: auditDone,
       lockedHint: "Complete one live run first — there is nothing to audit yet.",
+    },
+    {
+      key: "sandbox",
+      step: 4,
+      label: "K8s Sandbox",
+      to: "/sandbox",
+      title: "Inspect Kubernetes Sandbox",
+      body: "Live in-pod container execution, non-root security context, dynamic egress NetworkPolicy, and execution telemetry.",
+      cta: "Open K8s Sandbox",
+      unlocked: runDone,
+      done: false,
+      lockedHint: "Kubernetes Sandbox is locked. Complete an agent run first to unlock in-pod container execution and telemetry.",
     },
   ];
 
