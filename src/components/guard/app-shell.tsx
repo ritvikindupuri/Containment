@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useFlowProgress, type StageKey } from "@/lib/flow";
 import { WelcomeTour } from "@/components/guard/welcome-tour";
+import { ContainmentShield } from "@/components/brand/containment-shield";
 
 const ICONS: Record<StageKey, typeof KeyRound> = {
   setup: KeyRound,
@@ -44,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-5">
           <Link to="/" className="flex items-center gap-2">
-            <ShieldHalf className="size-5 text-primary" />
+            <ContainmentShield size={20} variant="logo" />
             <span className="font-semibold tracking-tight">Containment</span>
           </Link>
           <nav className="flex items-center gap-1">
@@ -117,11 +118,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="hidden sm:inline">K8s Sandbox</span>
             </Link>
           </nav>
-          <div className="ml-auto">
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              <LogOut className="size-4" />
-              Sign out
-            </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-mono text-emerald-400">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live Workspace
+            </span>
           </div>
         </div>
       </header>

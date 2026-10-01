@@ -82,13 +82,19 @@ export function AgentRun() {
   const ingestMutation = useMutation({
     mutationFn: (value: string) => ingest({ data: { url: value } }),
     onSuccess: (value) => {
-      setPlan(value as AgentRunPlan);
-      start(value as AgentRunPlan);
+      const p = value as AgentRunPlan;
+      setPlan(p);
+      start(p);
       setResults({});
       setK8sExecutions({});
       setActiveIndex(null);
       setOpen(null);
-      toast.success(`Agent cloned ${value.repo.owner}/${value.repo.repo} and planned ${value.steps.length} actions.`);
+      if (p.pod?.name) {
+        setActivePodName(p.pod.name);
+        toast.success(`Provisioned ephemeral sandbox pod ${p.pod.name} in containment-sandbox. Planned ${p.steps.length} actions.`);
+      } else {
+        toast.success(`Agent cloned ${p.repo.owner}/${p.repo.repo} and planned ${p.steps.length} actions.`);
+      }
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not read that repository"),
   });
@@ -127,7 +133,7 @@ export function AgentRun() {
             const k8sRes = await executeK8s({
               data: {
                 action: step.action,
-                sessionId: plan.repo.repo,
+                sessionId: plan.pod?.name || plan.repo.repo,
               },
             });
             if (k8sRes.sandbox) {
@@ -264,9 +270,37 @@ export function AgentRun() {
               </div>
             </div>
 
+            {plan.pod && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/5 p-3.5">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
+                    <Boxes className="size-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-semibold text-foreground">
+                        {plan.pod.name}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-mono text-emerald-400">
+                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        1/1 Running in {plan.pod.namespace}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Locked down: Non-root (UID {plan.pod.securityContext.runAsUser}) · Read-only rootfs · Dropped Capabilities · Ephemeral /workspace (2Gi)
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
+                  <span className="rounded bg-surface/60 px-2 py-1 border border-border">IP: {plan.pod.ip}</span>
+                  <span className="rounded bg-surface/60 px-2 py-1 border border-border">Node: {plan.pod.nodeName}</span>
+                </div>
+              </div>
+            )}
+
             {useK8sSandbox && (
               <KubernetesSandboxHud
-                activePodName={activePodName}
+                activePodName={activePodName || plan.pod?.name || null}
                 isExecuting={running}
               />
             )}

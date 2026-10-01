@@ -60,11 +60,8 @@ function Landing() {
             <span className="font-semibold tracking-tight">Containment</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/auth">Sign in</Link>
-            </Button>
             <Button asChild size="sm">
-              <Link to="/auth">Get a key</Link>
+              <Link to="/agent-run">Launch Sandbox</Link>
             </Button>
           </div>
         </div>
@@ -84,12 +81,12 @@ function Landing() {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg">
-                <Link to="/auth">
+                <Link to="/agent-run">
                   Start guarding actions <ArrowRight className="size-4" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <a href="#flow">See how it works</a>
+                <Link to="/sandbox">Explore K8s Cluster</Link>
               </Button>
             </div>
           </div>
@@ -188,7 +185,7 @@ function Landing() {
           Start with a repo. Leave with a policy, an audit trail and a live guard.
         </p>
         <Button asChild size="lg" className="mt-8">
-          <Link to="/auth">
+          <Link to="/agent-run">
             Start guarding actions <ArrowRight className="size-4" />
           </Link>
         </Button>

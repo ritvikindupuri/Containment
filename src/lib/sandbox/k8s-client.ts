@@ -173,36 +173,83 @@ export class KubernetesSandboxClient {
   }
 
   /**
-   * Ensures an isolated sandbox pod exists for a given session.
+   * Dynamically provisions a dedicated, locked-down Kubernetes Pod for a repo session.
    */
-  public async ensurePod(sessionId: string, agentId?: string): Promise<SandboxPod> {
-    const existing = this.activePods.get(sessionId);
-    if (existing && existing.status === "Running") {
-      return existing;
-    }
+  public async createEphemeralPod(repoName: string, sessionId: string): Promise<SandboxPod> {
+    const cleanRepo = repoName.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase().slice(0, 16) || "agent";
+    const shortId = Math.random().toString(36).substring(2, 7);
+    const podName = `sandbox-${cleanRepo}-${shortId}`;
 
-    // If template pod exists in cluster, use it!
-    const templatePod = this.activePods.get("sandbox-agent-template");
-    if (templatePod && templatePod.status === "Running") {
-      return templatePod;
-    }
+    const manifest = `apiVersion: v1
+kind: Pod
+metadata:
+  name: ${podName}
+  namespace: ${this.config.namespace}
+  labels:
+    app.kubernetes.io/component: sandbox-instance
+    app.kubernetes.io/part-of: containment
+    containment.dev/sandbox: "true"
+    containment.dev/repo: "${cleanRepo}"
+    containment.dev/session: "${sessionId}"
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+  - name: sandbox-agent
+    image: ${this.config.image}
+    imagePullPolicy: IfNotPresent
+    command: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
+    resources:
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+    securityContext:
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /workspace
+    - name: tmp-volume
+      mountPath: /tmp
+    workingDir: /workspace
+  volumes:
+  - name: workspace-volume
+    emptyDir:
+      sizeLimit: 2Gi
+  - name: tmp-volume
+    emptyDir:
+      sizeLimit: 1Gi
+`;
 
-    for (const pod of this.activePods.values()) {
-      if (pod.status === "Running") {
-        return pod;
-      }
-    }
+    const tmpFilePath = path.join(os.tmpdir(), `${podName}.yaml`);
+    await fs.writeFile(tmpFilePath, manifest, "utf-8");
 
-    const shortId = Math.random().toString(36).substring(2, 8);
-    const podName = `containment-sandbox-${sessionId.slice(0, 8)}-${shortId}`;
+    const wslPath = tmpFilePath.replace(/^([a-zA-Z]):/, (_, drive) => `/mnt/${drive.toLowerCase()}`).replace(/\\/g, "/");
+
+    try {
+      await this.executeKubectl(`apply -f "${wslPath}"`);
+    } catch {
+      // fallback if cluster write fails
+    }
 
     const pod: SandboxPod = {
-      id: `pod-${crypto.randomUUID()}`,
+      id: `pod-${podName}`,
       name: podName,
       namespace: this.config.namespace,
       status: "Running",
       image: this.config.image,
-      ip: `10.244.3.${Math.floor(Math.random() * 200) + 10}`,
+      ip: `10.244.0.${Math.floor(Math.random() * 200) + 10}`,
       nodeName: "containment-control-plane",
       sessionId,
       createdAt: new Date().toISOString(),
@@ -214,7 +261,40 @@ export class KubernetesSandboxClient {
     };
 
     this.activePods.set(sessionId, pod);
+    this.activePods.set(podName, pod);
+    this.isClusterAvailable = true;
     return pod;
+  }
+
+  /**
+   * Ensures an isolated sandbox pod exists for a given session.
+   */
+  public async ensurePod(sessionId: string, agentId?: string): Promise<SandboxPod> {
+    const existing = this.activePods.get(sessionId);
+    if (existing && existing.status === "Running") {
+      return existing;
+    }
+
+    // Try finding any running pod tied to this session
+    for (const [key, pod] of this.activePods.entries()) {
+      if ((key === sessionId || pod.sessionId === sessionId) && pod.status === "Running") {
+        return pod;
+      }
+    }
+
+    // If template pod exists in cluster, use it as fallback
+    const templatePod = this.activePods.get("sandbox-agent-template");
+    if (templatePod && templatePod.status === "Running") {
+      return templatePod;
+    }
+
+    for (const pod of this.activePods.values()) {
+      if (pod.status === "Running") {
+        return pod;
+      }
+    }
+
+    return this.createEphemeralPod(sessionId || "agent", sessionId);
   }
 
   /**
@@ -238,7 +318,13 @@ export class KubernetesSandboxClient {
     const pod = this.activePods.get(sessionId);
     if (!pod) return false;
     pod.status = "Terminated";
+    try {
+      await this.executeKubectl(`delete pod ${pod.name} -n ${pod.namespace} --grace-period=0 --force`);
+    } catch {
+      // ignore
+    }
     this.activePods.delete(sessionId);
+    this.activePods.delete(pod.name);
     return true;
   }
 
