@@ -63,6 +63,23 @@ export function ContainmentShield({
           <stop offset="0%" stopColor="#F87171" />
           <stop offset="100%" stopColor="#EF4444" />
         </linearGradient>
+
+        <style>{`
+          @keyframes laserDash {
+            to { stroke-dashoffset: -20; }
+          }
+          @keyframes botFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-2px); }
+          }
+          .escape-dash {
+            animation: laserDash 1.2s linear infinite;
+          }
+          .bot-floater {
+            animation: botFloat 3s ease-in-out infinite;
+            transform-origin: 78px 18px;
+          }
+        `}</style>
       </defs>
 
       {/* 1. THE SANDBOX CONTAINER (Bottom-Left) */}
@@ -117,90 +134,135 @@ export function ContainmentShield({
 
       {/* 2. THE ESCAPE TRAJECTORY (Agent jumping out) */}
       <path
-        d="M 44 48 C 50 36, 56 24, 70 18"
+        d="M 44 48 C 50 36, 56 24, 68 18"
         stroke="url(#escapeRedGrad)"
         strokeWidth={swTrail}
-        strokeDasharray={isHero ? "5 4" : "4 3"}
+        strokeDasharray="4 3"
         strokeLinecap="round"
         fill="none"
+        className={isHero ? "escape-dash" : undefined}
       />
 
       {/* 3. THE ESCAPING AI AGENT (Robot Badge leaping top-right) */}
-      {/* Bot Badge Container */}
-      <rect
-        x="64"
-        y="6"
-        width="28"
-        height="26"
-        rx="7"
-        fill="#18181B"
-        stroke="url(#escapeRedGrad)"
-        strokeWidth={swBadge}
-      />
+      <g className={isHero ? "bot-floater" : undefined}>
+        {/* Bot Badge Container */}
+        <rect
+          x="64"
+          y="4"
+          width="28"
+          height="25"
+          rx="6"
+          fill="#18181B"
+          stroke="url(#escapeRedGrad)"
+          strokeWidth={swBadge}
+        />
 
-      {/* Bot Antenna */}
-      <line
-        x1="78"
-        y1="11"
-        x2="78"
-        y2="13"
-        stroke="#EF4444"
-        strokeWidth={swBot}
-        strokeLinecap="round"
-      />
-      <circle
-        cx="78"
-        cy="10"
-        r={isHero ? 1.5 : 1.2}
-        fill="#EF4444"
-      />
+        {/* Bot Antenna */}
+        <line
+          x1="78"
+          y1="8"
+          x2="78"
+          y2="10.5"
+          stroke="#EF4444"
+          strokeWidth={swBot}
+          strokeLinecap="round"
+        />
+        <circle
+          cx="78"
+          cy="7.5"
+          r={isHero ? 1.4 : 1.1}
+          fill="#EF4444"
+        />
 
-      {/* Bot Head */}
-      <rect
-        x="71"
-        y="13"
-        width="14"
-        height="12"
-        rx="2.5"
-        stroke="#EF4444"
-        strokeWidth={swBot}
-        fill="#EF4444"
-        fillOpacity="0.15"
-      />
+        {/* Bot Head */}
+        <rect
+          x="71"
+          y="11"
+          width="14"
+          height="11"
+          rx="2.5"
+          stroke="#EF4444"
+          strokeWidth={swBot}
+          fill="#EF4444"
+          fillOpacity="0.15"
+        />
 
-      {/* Bot Eyes */}
-      <circle
-        cx="75"
-        cy="19"
-        r={isHero ? 1.4 : 1.2}
-        fill="#EF4444"
-      />
-      <circle
-        cx="81"
-        cy="19"
-        r={isHero ? 1.4 : 1.2}
-        fill="#EF4444"
-      />
+        {/* Bot Eyes */}
+        <circle
+          cx="75"
+          cy="16.5"
+          r={isHero ? 1.3 : 1.1}
+          fill="#EF4444"
+        />
+        <circle
+          cx="81"
+          cy="16.5"
+          r={isHero ? 1.3 : 1.1}
+          fill="#EF4444"
+        />
 
-      {/* Bot Ears */}
-      <line
-        x1="69"
-        y1="18.5"
-        x2="71"
-        y2="18.5"
-        stroke="#EF4444"
-        strokeWidth={swBot}
-        strokeLinecap="round"
-      />
-      <line
-        x1="85"
-        y1="18.5"
-        x2="87"
-        y2="18.5"
-        stroke="#EF4444"
-        strokeWidth={swBot}
-        strokeLinecap="round"
-      />
+        {/* Bot Ears */}
+        <line
+          x1="69"
+          y1="16"
+          x2="71"
+          y2="16"
+          stroke="#EF4444"
+          strokeWidth={swBot}
+          strokeLinecap="round"
+        />
+        <line
+          x1="85"
+          y1="16"
+          x2="87"
+          y2="16"
+          stroke="#EF4444"
+          strokeWidth={swBot}
+          strokeLinecap="round"
+        />
+
+        {/* In Hero mode: Render HUD leader line and ESCAPE ATTEMPT pill below the bot (zero collision) */}
+        {isHero && (
+          <g>
+            {/* Leader connection line from badge bottom down to status pill */}
+            <line
+              x1="78"
+              y1="29"
+              x2="78"
+              y2="33"
+              stroke="#EF4444"
+              strokeWidth="1.2"
+              strokeDasharray="2 1.5"
+              strokeOpacity="0.8"
+            />
+            {/* HUD Status Pill */}
+            <rect
+              x="52"
+              y="33"
+              width="52"
+              height="10"
+              rx="2.5"
+              fill="#18181B"
+              fillOpacity="0.95"
+              stroke="#EF4444"
+              strokeWidth="1"
+              strokeOpacity="0.85"
+            />
+            <text
+              x="78"
+              y="40.2"
+              fill="#EF4444"
+              fontSize="4.8"
+              fontWeight="700"
+              textAnchor="middle"
+              letterSpacing="0.08em"
+              fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+            >
+              ESCAPE ATTEMPT
+            </text>
+          </g>
+        )}
+      </g>
     </svg>
   );
 
@@ -210,9 +272,6 @@ export function ContainmentShield({
         {/* Soft atmospheric ambient glow */}
         <div className="absolute inset-0 m-auto size-64 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
         {svgContent}
-        <span className="absolute right-0 top-14 rounded-md border border-destructive/40 bg-card/90 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-destructive pointer-events-none">
-          escape attempt
-        </span>
       </div>
     );
   }
