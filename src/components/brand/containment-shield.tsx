@@ -19,18 +19,13 @@ export function ContainmentShield({
 }: ContainmentShieldProps) {
   const isHero = variant === "hero";
 
-  // Calibrate stroke widths for crisp display at small icon sizes vs large hero sizes
-  const swCubeWalls = isHero ? 1.5 : 2.0;
-  const swCubeTop = isHero ? 2.0 : 2.5;
-  const swShield = isHero ? 2.5 : 3.0;
-  const swRib = isHero ? 1.5 : 2.0;
-  const swChevron = isHero ? 1.8 : 2.2;
-  const nodeRadius = isHero ? 3.5 : 4.0;
-  const ringRadius = isHero ? 7.0 : 7.5;
+  // Calibrated stroke widths for sharp readability at small icon sizes and majestic hero sizes
+  const swOuter = isHero ? 1.8 : 2.4;
+  const swRim = isHero ? 2.2 : 2.8;
 
   const content = (
     <svg
-      viewBox="0 0 100 105"
+      viewBox="0 0 100 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn(
@@ -41,108 +36,116 @@ export function ContainmentShield({
       style={!isHero ? { width: size, height: size } : undefined}
     >
       <defs>
-        {/* Amber / Yellow firewall aura gradient */}
-        <linearGradient id="containmentFirewallGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        {/* Signal Amber / Gold firewall aura */}
+        <linearGradient id="sandboxFirewallAura" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#F59E0B" />
           <stop offset="50%" stopColor="#FBBF24" />
           <stop offset="100%" stopColor="#D97706" />
         </linearGradient>
 
-        {/* Cube Left Wall Fill */}
-        <linearGradient id="cubeLeftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        {/* Outer Left Wall - Deep dark zinc */}
+        <linearGradient id="sbLeftWall" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#18181B" />
-          <stop offset="100%" stopColor="#0E0E10" />
+          <stop offset="100%" stopColor="#0F0F11" />
         </linearGradient>
 
-        {/* Cube Right Wall Fill */}
-        <linearGradient id="cubeRightGrad" x1="100%" y1="0%" x2="0%" y2="100%">
+        {/* Outer Right Wall - Architectural dimensional zinc */}
+        <linearGradient id="sbRightWall" x1="100%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor="#222226" />
+          <stop offset="100%" stopColor="#141417" />
+        </linearGradient>
+
+        {/* Recessed Sandbox Floor Void */}
+        <linearGradient id="sbFloor" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#09090B" />
           <stop offset="100%" stopColor="#141416" />
         </linearGradient>
       </defs>
 
-      {/* 1. Isometric Container Box: Left Wall */}
+      {/* 1. Outer Sandbox Left Wall */}
       <path
-        d="M 12 28 L 50 50 L 50 98 L 12 76 Z"
-        fill="url(#cubeLeftGrad)"
+        d="M 12 30 L 50 52 L 50 92 L 12 70 Z"
+        fill="url(#sbLeftWall)"
         stroke="#3F3F46"
-        strokeWidth={swCubeWalls}
+        strokeWidth={swOuter}
         strokeLinejoin="round"
       />
 
-      {/* 2. Isometric Container Box: Right Wall */}
+      {/* 2. Outer Sandbox Right Wall */}
       <path
-        d="M 50 50 L 88 28 L 88 76 L 50 98 Z"
-        fill="url(#cubeRightGrad)"
+        d="M 50 52 L 88 30 L 88 70 L 50 92 Z"
+        fill="url(#sbRightWall)"
         stroke="#3F3F46"
-        strokeWidth={swCubeWalls}
+        strokeWidth={swOuter}
         strokeLinejoin="round"
       />
 
-      {/* 3. Isometric Container Box: Top Face (Hardened /workspace ceiling) */}
+      {/* 3. Outer Sandbox Top Rim (Beveled container boundary) */}
       <path
-        d="M 50 6 L 88 28 L 50 50 L 12 28 Z"
-        fill="#26262B"
-        stroke="url(#containmentFirewallGrad)"
-        strokeWidth={swCubeTop}
+        d="M 50 8 L 88 30 L 50 52 L 12 30 Z"
+        fill="#27272A"
+        stroke="url(#sandboxFirewallAura)"
+        strokeWidth={swRim}
         strokeLinejoin="round"
       />
 
-      {/* 4. Active Firewall Perimeter Shield (The Core Containment Guard) */}
+      {/* 4. Recessed Sandbox Chamber Floor (Looking down inside /workspace) */}
       <path
-        d="M 50 22 L 74 35 L 74 60 C 74 78 62 88 50 92 C 38 88 26 78 26 60 L 26 35 Z"
-        fill="#09090B"
-        stroke="url(#containmentFirewallGrad)"
-        strokeWidth={swShield}
+        d="M 50 24 L 76 39 L 50 54 L 24 39 Z"
+        fill="url(#sbFloor)"
+        stroke="#3F3F46"
+        strokeWidth="1.2"
         strokeLinejoin="round"
       />
 
-      {/* 5. Shield Center Vertical Rib */}
-      <line
-        x1="50"
-        y1="22"
-        x2="50"
-        y2="92"
-        stroke="#F59E0B"
-        strokeWidth={swRib}
-        strokeOpacity="0.75"
-        strokeLinecap="round"
-      />
-
-      {/* 6. Firewall Chevrons */}
+      {/* 5. Inner Chamber Recess Drop Walls (Creating visible 3D sandbox depth) */}
       <path
-        d="M 36 43 L 50 51 L 64 43"
-        stroke="#F59E0B"
-        strokeWidth={swChevron}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeOpacity="0.85"
+        d="M 24 39 L 50 54 L 50 63 L 24 48 Z"
+        fill="#0D0D0F"
+        stroke="#27272A"
+        strokeWidth="0.8"
       />
       <path
-        d="M 36 57 L 50 65 L 64 57"
-        stroke="#F59E0B"
-        strokeWidth={swChevron}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeOpacity="0.85"
+        d="M 50 54 L 76 39 L 76 48 L 50 63 Z"
+        fill="#17171A"
+        stroke="#27272A"
+        strokeWidth="0.8"
       />
 
-      {/* 7. Central Secured Core Node */}
-      <circle
+      {/* 6. Active Firewall Perimeter Energy Fence (Dashed containment ring) */}
+      <ellipse
         cx="50"
-        cy="51"
-        r={nodeRadius}
+        cy="45"
+        rx="17"
+        ry="9.5"
+        stroke="#F59E0B"
+        strokeWidth="1.4"
+        strokeDasharray="3 2"
+        strokeOpacity="0.85"
+        fill="none"
+      />
+
+      {/* 7. Contained Agent Core (Isometric glowing micro-process safely contained inside) */}
+      {/* Top face of agent process */}
+      <path
+        d="M 50 38 L 57 42 L 50 46 L 43 42 Z"
+        fill="#FBBF24"
+      />
+      {/* Left face of agent process */}
+      <path
+        d="M 43 42 L 50 46 L 50 54 L 43 50 Z"
+        fill="#D97706"
+      />
+      {/* Right face of agent process */}
+      <path
+        d="M 50 46 L 57 42 L 57 50 L 50 54 Z"
         fill="#F59E0B"
       />
-      <circle
-        cx="50"
-        cy="51"
-        r={ringRadius}
-        stroke="#F59E0B"
-        strokeWidth="1.2"
-        strokeDasharray="2.5 2"
-        strokeOpacity="0.75"
-        fill="none"
+
+      {/* 8. Front Rim Security Anchor / Firewall Latch */}
+      <path
+        d="M 44 48 L 50 52 L 56 48 L 50 57 Z"
+        fill="url(#sandboxFirewallAura)"
       />
     </svg>
   );
@@ -150,7 +153,7 @@ export function ContainmentShield({
   if (isHero) {
     return (
       <div className={cn("relative flex items-center justify-center", className)}>
-        {/* Atmospheric ambient glow */}
+        {/* Soft atmospheric ambient glow */}
         <div className="absolute inset-0 m-auto size-64 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
         {content}
       </div>
