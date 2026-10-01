@@ -10,7 +10,7 @@ metadata:
 spec:
   # Optional gVisor / Kata isolation runtime class (can be enabled if configured on node)
   # runtimeClassName: gvisor
-  restartPolicy: Never
+  restartPolicy: Always
   automountServiceAccountToken: false
   securityContext:
     runAsNonRoot: true
@@ -22,7 +22,7 @@ spec:
   containers:
     - name: sandbox-agent
       image: node:20-slim
-      command: ["/bin/sh", "-c", "sleep 3600"]
+      command: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
       workingDir: /workspace
       securityContext:
         allowPrivilegeEscalation: false

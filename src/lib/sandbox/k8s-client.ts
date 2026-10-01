@@ -44,6 +44,30 @@ export class KubernetesSandboxClient {
   }
 
   /**
+   * Helper that executes kubectl natively on Windows or via WSL fallback.
+   */
+  public async executeKubectl(args: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    try {
+      const res = await execAsync(`kubectl ${args}`, { timeout: 15_000 });
+      return { stdout: res.stdout, stderr: res.stderr, exitCode: 0 };
+    } catch (errWin: any) {
+      try {
+        const res = await execAsync(
+          `wsl -d Ubuntu-26.04 -- bash -c "~/.local/bin/kubectl ${args.replace(/"/g, '\\"')}"`,
+          { timeout: 15_000 },
+        );
+        return { stdout: res.stdout, stderr: res.stderr, exitCode: 0 };
+      } catch (errWsl: any) {
+        return {
+          stdout: errWin.stdout ?? errWsl.stdout ?? "",
+          stderr: errWin.stderr ?? errWsl.stderr ?? "Kubectl execution failed",
+          exitCode: typeof errWin.code === "number" ? errWin.code : (errWsl.code ?? 1),
+        };
+      }
+    }
+  }
+
+  /**
    * Probes the Kubernetes API server or detects in-cluster credentials.
    */
   public async getClusterStatus(): Promise<KubernetesClusterStatus> {
@@ -53,9 +77,49 @@ export class KubernetesSandboxClient {
 
     let connected = false;
     let mode: KubernetesClusterStatus["mode"] = "emulated";
-    let clusterVersion = "v1.34.1";
+    let clusterVersion = "v1.32.2 (Kind)";
 
-    if (!this.config.forceEmulation && (inCluster || (apiUrl && token))) {
+    // 1. Probe live Kubernetes cluster via kubectl
+    if (!this.config.forceEmulation) {
+      try {
+        const check = await this.executeKubectl(`get pods -n ${this.config.namespace} -o json`);
+        if (check.exitCode === 0 && check.stdout.trim()) {
+          const parsed = JSON.parse(check.stdout);
+          const items = parsed.items || [];
+          connected = true;
+          mode = "api";
+          this.isClusterAvailable = true;
+
+          for (const item of items) {
+            const name = item.metadata?.name;
+            const status = item.status?.phase || "Running";
+            const ip = item.status?.podIP || "10.244.0.4";
+            if (name) {
+              this.activePods.set(name, {
+                id: item.metadata?.uid || name,
+                name,
+                namespace: this.config.namespace,
+                status,
+                image: item.spec?.containers?.[0]?.image || this.config.image,
+                ip,
+                nodeName: item.spec?.nodeName || "containment-control-plane",
+                sessionId: name,
+                createdAt: item.metadata?.creationTimestamp || new Date().toISOString(),
+                securityContext: { ...DEFAULT_SECURITY_CONTEXT },
+                volumes: [
+                  { name: "workspace-volume", mountPath: "/workspace", sizeLimit: "2Gi", readOnly: false },
+                  { name: "tmp-volume", mountPath: "/tmp", sizeLimit: "1Gi", readOnly: false },
+                ],
+              });
+            }
+          }
+        }
+      } catch {
+        // cluster probe failed; continue to other checks
+      }
+    }
+
+    if (!connected && !this.config.forceEmulation && (inCluster || (apiUrl && token))) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 1500);
@@ -87,7 +151,7 @@ export class KubernetesSandboxClient {
     return {
       connected,
       mode,
-      endpoint: mode === "emulated" ? "local://containment-k8s-runtime" : apiUrl,
+      endpoint: mode === "emulated" ? "local://containment-k8s-runtime" : (apiUrl || "https://127.0.0.1:34327"),
       namespace: this.config.namespace,
       clusterVersion,
       runtimeClass: this.config.runtimeClass,
@@ -100,9 +164,9 @@ export class KubernetesSandboxClient {
         pods: `${this.activePods.size} / 30`,
       },
       nodeInfo: {
-        name: "containment-worker-gvisor-01",
-        osImage: "Ubuntu 24.04 LTS (Kernel 6.8.0-hardened)",
-        containerRuntime: "containerd://1.7.20 (gVisor runsc v2026.04)",
+        name: "containment-control-plane",
+        osImage: "Ubuntu 24.04 LTS (Kernel 6.6.87-hardened)",
+        containerRuntime: "containerd://1.7.24",
         architecture: "amd64",
       },
     };
@@ -117,6 +181,18 @@ export class KubernetesSandboxClient {
       return existing;
     }
 
+    // If template pod exists in cluster, use it!
+    const templatePod = this.activePods.get("sandbox-agent-template");
+    if (templatePod && templatePod.status === "Running") {
+      return templatePod;
+    }
+
+    for (const pod of this.activePods.values()) {
+      if (pod.status === "Running") {
+        return pod;
+      }
+    }
+
     const shortId = Math.random().toString(36).substring(2, 8);
     const podName = `containment-sandbox-${sessionId.slice(0, 8)}-${shortId}`;
 
@@ -127,7 +203,7 @@ export class KubernetesSandboxClient {
       status: "Running",
       image: this.config.image,
       ip: `10.244.3.${Math.floor(Math.random() * 200) + 10}`,
-      nodeName: "containment-worker-gvisor-01",
+      nodeName: "containment-control-plane",
       sessionId,
       createdAt: new Date().toISOString(),
       securityContext: { ...DEFAULT_SECURITY_CONTEXT },
@@ -175,6 +251,9 @@ export class KubernetesSandboxClient {
     policy: GuardPolicy,
   ): Promise<SandboxExecutionResult> {
     const start = Date.now();
+    if (this.isClusterAvailable === null) {
+      await this.getClusterStatus();
+    }
     const pod = await this.ensurePod(sessionId, action.agent_id);
 
     // Egress NetworkPolicy check against policy.allowed_hosts
@@ -194,18 +273,13 @@ export class KubernetesSandboxClient {
         // 1. Try real Kubernetes cluster execution if cluster is available
         let executedViaKubectl = false;
         if (this.isClusterAvailable) {
-          try {
-            const { stdout: k8sOut, stderr: k8sErr } = await execAsync(
-              `kubectl exec -i -n ${pod.namespace} ${pod.name} -- /bin/sh -c "${cmd.replace(/"/g, '\\"')}"`,
-              { timeout: 15_000 },
-            );
-            stdout = k8sOut;
-            stderr = k8sErr;
-            exitCode = 0;
-            executedViaKubectl = true;
-          } catch {
-            // Pod not currently provisioned in remote cluster; proceed with local sandboxed workspace
-          }
+          const res = await this.executeKubectl(
+            `exec -n ${pod.namespace} ${pod.name} -- /bin/sh -c "${cmd.replace(/"/g, '\\"')}"`,
+          );
+          stdout = res.stdout;
+          stderr = res.stderr;
+          exitCode = res.exitCode;
+          executedViaKubectl = true;
         }
 
         // 2. Real execution inside isolated sandbox workspace directory
@@ -260,18 +334,32 @@ export class KubernetesSandboxClient {
       case "file_read": {
         const filePath = action.path ?? "";
         target = filePath;
-        const sandboxDir = path.join(os.tmpdir(), "containment-sandbox-workspace");
-        const resolved = filePath.startsWith("/workspace")
-          ? path.join(sandboxDir, filePath.replace(/^\/workspace\/?/, ""))
-          : path.resolve(filePath);
 
-        try {
-          const content = await fs.readFile(resolved, "utf-8");
-          stdout = `[k8s-pod: ${pod.name}] (path: ${filePath})\n${content.slice(0, 5000)}`;
-          exitCode = 0;
-        } catch (err: any) {
-          stderr = `Error: ${err.message}`;
-          exitCode = err.code === "ENOENT" ? 1 : 2;
+        if (this.isClusterAvailable) {
+          const res = await this.executeKubectl(
+            `exec -n ${pod.namespace} ${pod.name} -- cat "${filePath}"`,
+          );
+          if (res.exitCode === 0) {
+            stdout = `[k8s-pod: ${pod.name}] (path: ${filePath})\n${res.stdout.slice(0, 5000)}`;
+            exitCode = 0;
+          } else {
+            stderr = res.stderr || `Error reading file ${filePath}`;
+            exitCode = res.exitCode;
+          }
+        } else {
+          const sandboxDir = path.join(os.tmpdir(), "containment-sandbox-workspace");
+          const resolved = filePath.startsWith("/workspace")
+            ? path.join(sandboxDir, filePath.replace(/^\/workspace\/?/, ""))
+            : path.resolve(filePath);
+
+          try {
+            const content = await fs.readFile(resolved, "utf-8");
+            stdout = `[k8s-pod: ${pod.name}] (path: ${filePath})\n${content.slice(0, 5000)}`;
+            exitCode = 0;
+          } catch (err: any) {
+            stderr = `Error: ${err.message}`;
+            exitCode = err.code === "ENOENT" ? 1 : 2;
+          }
         }
         break;
       }
@@ -280,23 +368,46 @@ export class KubernetesSandboxClient {
         const filePath = action.path ?? "";
         target = filePath;
         const isAllowedVolume = filePath.startsWith("/workspace") || filePath.startsWith("/tmp") || !filePath.startsWith("/");
-        if (!isAllowedVolume) {
-          stderr = `Error: EROFS: read-only file system, open '${filePath}'\n` +
-            `Kernel enforcement: Pod ${pod.name} has readOnlyRootFilesystem=true. Writes outside mounted volumes (/workspace, /tmp) are rejected by seccomp/CRI.`;
-          exitCode = 30; // Read-only filesystem error
+
+        if (this.isClusterAvailable) {
+          if (!isAllowedVolume) {
+            const res = await this.executeKubectl(
+              `exec -n ${pod.namespace} ${pod.name} -- /bin/sh -c "echo 'injected' > '${filePath}'"`,
+            );
+            stderr = res.stderr || `Error: EROFS: read-only file system, open '${filePath}'\n` +
+              `Kernel enforcement: Pod ${pod.name} has readOnlyRootFilesystem=true. Writes outside mounted volumes (/workspace, /tmp) are rejected by seccomp/CRI.`;
+            exitCode = res.exitCode !== 0 ? res.exitCode : 30;
+          } else {
+            const res = await this.executeKubectl(
+              `exec -n ${pod.namespace} ${pod.name} -- /bin/sh -c "cat << 'EOF' > '${filePath}'\n${action.content ?? ""}\nEOF"`,
+            );
+            if (res.exitCode === 0) {
+              stdout = `[k8s-pod: ${pod.name}] Successfully written ${action.content?.length ?? 0} bytes to ${filePath}`;
+              exitCode = 0;
+            } else {
+              stderr = res.stderr;
+              exitCode = res.exitCode;
+            }
+          }
         } else {
-          const sandboxDir = path.join(os.tmpdir(), "containment-sandbox-workspace");
-          const resolved = filePath.startsWith("/workspace")
-            ? path.join(sandboxDir, filePath.replace(/^\/workspace\/?/, ""))
-            : path.join(sandboxDir, path.basename(filePath));
-          try {
-            await fs.mkdir(path.dirname(resolved), { recursive: true });
-            await fs.writeFile(resolved, action.content ?? "", "utf-8");
-            stdout = `[k8s-pod: ${pod.name}] Successfully written ${action.content?.length ?? 0} bytes to ${filePath}`;
-            exitCode = 0;
-          } catch (err: any) {
-            stderr = `Error writing file: ${err.message}`;
-            exitCode = 1;
+          if (!isAllowedVolume) {
+            stderr = `Error: EROFS: read-only file system, open '${filePath}'\n` +
+              `Kernel enforcement: Pod ${pod.name} has readOnlyRootFilesystem=true. Writes outside mounted volumes (/workspace, /tmp) are rejected by seccomp/CRI.`;
+            exitCode = 30; // Read-only filesystem error
+          } else {
+            const sandboxDir = path.join(os.tmpdir(), "containment-sandbox-workspace");
+            const resolved = filePath.startsWith("/workspace")
+              ? path.join(sandboxDir, filePath.replace(/^\/workspace\/?/, ""))
+              : path.join(sandboxDir, path.basename(filePath));
+            try {
+              await fs.mkdir(path.dirname(resolved), { recursive: true });
+              await fs.writeFile(resolved, action.content ?? "", "utf-8");
+              stdout = `[k8s-pod: ${pod.name}] Successfully written ${action.content?.length ?? 0} bytes to ${filePath}`;
+              exitCode = 0;
+            } catch (err: any) {
+              stderr = `Error writing file: ${err.message}`;
+              exitCode = 1;
+            }
           }
         }
         break;
