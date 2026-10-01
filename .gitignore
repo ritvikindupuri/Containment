@@ -19,6 +19,8 @@ dist-ssr
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
+.env
+.containment_local_db.json
 
 # Editor directories and files
 .vscode/*

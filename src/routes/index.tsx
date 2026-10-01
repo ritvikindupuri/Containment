@@ -64,7 +64,7 @@ function Landing() {
               <Link to="/auth">Sign in</Link>
             </Button>
             <Button asChild size="sm">
-              <Link to="/auth">Contain my agent</Link>
+              <Link to="/auth">Get a key</Link>
             </Button>
           </div>
         </div>
@@ -85,7 +85,7 @@ function Landing() {
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg">
                 <Link to="/auth">
-                  Contain my agent <ArrowRight className="size-4" />
+                  Start guarding actions <ArrowRight className="size-4" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline">
@@ -189,7 +189,7 @@ function Landing() {
         </p>
         <Button asChild size="lg" className="mt-8">
           <Link to="/auth">
-            Contain my agent <ArrowRight className="size-4" />
+            Start guarding actions <ArrowRight className="size-4" />
           </Link>
         </Button>
       </section>
