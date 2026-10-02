@@ -145,9 +145,10 @@ function SandboxPage() {
     },
   });
 
+  const [overrideUnlock, setOverrideUnlock] = useState(false);
   const { stages, loading: flowLoading } = useFlowProgress();
   const sandboxStage = stages.find((s) => s.key === "sandbox");
-  const isLocked = !flowLoading && sandboxStage && !sandboxStage.unlocked;
+  const isLocked = !overrideUnlock && !flowLoading && sandboxStage && !sandboxStage.unlocked;
 
   if (isLocked) {
     return (
@@ -161,12 +162,16 @@ function SandboxPage() {
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
               {sandboxStage.lockedHint || "Complete an agent run first in step 02 to unlock in-pod container execution and real-time pod telemetry."}
             </p>
-            <div className="mt-6 flex justify-center gap-3">
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
               <Button asChild>
                 <Link to="/agent-run">
                   <Play className="mr-2 size-4" />
                   Go to Live Agent Run
                 </Link>
+              </Button>
+              <Button variant="outline" onClick={() => setOverrideUnlock(true)}>
+                <Zap className="mr-2 size-4 text-primary" />
+                Unlock Sandbox Now
               </Button>
             </div>
           </Card>
