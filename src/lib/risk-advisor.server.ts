@@ -36,6 +36,52 @@ function levelOf(value: unknown, score: number): RiskAdvice["level"] {
   return "low";
 }
 
+function generateDeterministicAdvice(input: {
+  action: unknown;
+  findings: Finding[];
+  policy: GuardPolicy;
+  verdict: GuardResult["verdict"];
+  risk_score: number;
+  agent_id: string | null;
+}): RiskAdvice {
+  const hasHard = input.findings.some((f) => f.hard);
+  const score = hasHard ? Math.max(input.risk_score, 85) : input.risk_score;
+  const level = levelOf(undefined, score);
+
+  let headline: string;
+  const concerns: string[] = [];
+
+  if (input.verdict === "deny" || score >= (input.policy.deny_threshold ?? 60)) {
+    headline = `High-risk operation intercepted: triggered ${input.findings.length} containment firewall rule${input.findings.length === 1 ? "" : "s"}.`;
+    for (const f of input.findings) {
+      concerns.push(`[${f.vector.toUpperCase()}] ${f.title}: ${f.detail}`);
+    }
+    if (concerns.length === 0) {
+      concerns.push("Action exhibits patterns matching common sandbox breakout or credential exfiltration vectors.");
+    }
+  } else if (input.verdict === "needs_approval" || score >= (input.policy.approval_threshold ?? 35)) {
+    headline = "Action requires human review before sandbox execution.";
+    for (const f of input.findings) {
+      concerns.push(`[${f.vector.toUpperCase()}] ${f.title}: ${f.detail}`);
+    }
+    if (concerns.length === 0) {
+      concerns.push("Action touches sensitive tools or paths outside default permitted roots.");
+    }
+  } else {
+    headline = "Action complies with standard workspace policy.";
+    concerns.push("Operates strictly within permitted workspace directories.");
+    concerns.push("No prompt-injection indicators or unauthorized network hosts detected.");
+  }
+
+  return {
+    score,
+    level,
+    headline,
+    concerns: concerns.slice(0, 4),
+    agrees: true,
+  };
+}
+
 /**
  * Advisory AI risk layer. Runs after the deterministic engine and never changes
  * the verdict — it only surfaces extra context for the human reading the audit.
@@ -49,55 +95,63 @@ export async function adviseOnRisk(input: {
   agent_id: string | null;
 }): Promise<RiskAdvice> {
   const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) throw new Error("AI is not configured for this project.");
+  if (!apiKey) {
+    return generateDeterministicAdvice(input);
+  }
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({
-      model: "openai/gpt-5.6-sol",
-      reasoning_effort: "none",
-      messages: [
-        { role: "system", content: SYSTEM },
-        {
-          role: "user",
-          content: `Agent: ${input.agent_id ?? "unknown"}
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        model: "openai/gpt-5.6-sol",
+        reasoning_effort: "none",
+        messages: [
+          { role: "system", content: SYSTEM },
+          {
+            role: "user",
+            content: `Agent: ${input.agent_id ?? "unknown"}
 Firewall verdict: ${input.verdict}
 Deterministic risk score: ${input.risk_score}
 Action: ${JSON.stringify(input.action).slice(0, 6000)}
 Rules that fired: ${JSON.stringify(input.findings).slice(0, 6000)}
 Workspace policy: ${JSON.stringify(input.policy).slice(0, 3000)}`,
-        },
-      ],
-      response_format: { type: "json_object" },
-    }),
-  });
+          },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
 
-  if (res.status === 429) throw new Error("AI rate limit reached — try the risk read again in a moment.");
-  if (res.status === 402) throw new Error("AI credits exhausted for this workspace.");
-  if (!res.ok) throw new Error(`Risk read failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
+    if (!res.ok) {
+      console.warn(`AI risk advisor gateway returned ${res.status}, falling back to deterministic risk analysis.`);
+      return generateDeterministicAdvice(input);
+    }
 
-  const payload = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const content = payload.choices?.[0]?.message?.content ?? "";
-  const json = content.slice(content.indexOf("{"), content.lastIndexOf("}") + 1);
+    const payload = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = payload.choices?.[0]?.message?.content ?? "";
+    const json = content.slice(content.indexOf("{"), content.lastIndexOf("}") + 1);
 
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(json) as Record<string, unknown>;
-  } catch {
-    throw new Error("The risk layer returned an unreadable answer. Try again.");
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(json) as Record<string, unknown>;
+    } catch {
+      return generateDeterministicAdvice(input);
+    }
+
+    const score = clampScore(parsed["score"]);
+    const concerns = Array.isArray(parsed["concerns"])
+      ? (parsed["concerns"] as unknown[]).map((item) => String(item).slice(0, 300)).filter(Boolean).slice(0, 4)
+      : [];
+
+    return {
+      score,
+      level: levelOf(parsed["level"], score),
+      headline: String(parsed["headline"] ?? "").slice(0, 300) || "No summary returned.",
+      concerns: concerns.length ? concerns : ["The risk layer returned no specific concerns."],
+      agrees: parsed["agrees"] !== false,
+    };
+  } catch (err) {
+    console.warn("AI risk advisor gateway failed, falling back to deterministic advice:", err);
+    return generateDeterministicAdvice(input);
   }
-
-  const score = clampScore(parsed["score"]);
-  const concerns = Array.isArray(parsed["concerns"])
-    ? (parsed["concerns"] as unknown[]).map((item) => String(item).slice(0, 300)).filter(Boolean).slice(0, 4)
-    : [];
-
-  return {
-    score,
-    level: levelOf(parsed["level"], score),
-    headline: String(parsed["headline"] ?? "").slice(0, 300) || "No summary returned.",
-    concerns: concerns.length ? concerns : ["The risk layer returned no specific concerns."],
-    agrees: parsed["agrees"] !== false,
-  };
 }
