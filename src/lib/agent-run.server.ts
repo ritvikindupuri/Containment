@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { actionSchema } from "@/lib/guard/schemas";
 import { DEFAULT_POLICY, type ActionType } from "@/lib/guard/types";
+import { callClaude, extractJson } from "@/lib/anthropic.server";
 
 
 export type RepoContext = {
@@ -346,83 +347,55 @@ export function generateDeterministicPlan(context: RepoContext, excerpts: string
 }
 
 export async function planAgentRun(context: RepoContext, excerpts: string): Promise<RepoSessionPlan> {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) {
-    return generateDeterministicPlan(context, excerpts);
-  }
-
-  try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        model: "openai/gpt-5.6-sol",
-        reasoning_effort: "none",
-        messages: [
-          { role: "system", content: SYSTEM },
-          {
-            role: "user",
-            content: `Repository: ${context.owner}/${context.repo}
+  const content = await callClaude({
+    system: SYSTEM,
+    prompt: `Repository: ${context.owner}/${context.repo}
 Description: ${context.description ?? "none"}
 Primary language: ${context.language ?? "unknown"}
 Files in repo: ${context.file_count}
 Files read: ${context.scanned_files.join(", ") || "none"}
 
 Repository excerpts:
-${excerpts || "(no setup files found)"}`,
-          },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
+${excerpts || "(no setup files found)"}
 
-    if (!res.ok) {
-      console.warn(`AI gateway returned ${res.status}, falling back to deterministic plan generator.`);
-      return generateDeterministicPlan(context, excerpts);
-    }
+Output strictly valid JSON matching the requested schema.`,
+  });
 
-    const payload = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const content = payload.choices?.[0]?.message?.content ?? "";
-    const json = content.slice(content.indexOf("{"), content.lastIndexOf("}") + 1);
-
-    let parsed: { steps?: unknown; examples?: unknown; policy?: unknown };
-    try {
-      parsed = JSON.parse(json);
-    } catch {
-      return generateDeterministicPlan(context, excerpts);
-    }
-
-    const agentId = `${context.owner}/${context.repo}`;
-    const steps = toSteps(parsed.steps, agentId, 14);
-    if (steps.length === 0) {
-      return generateDeterministicPlan(context, excerpts);
-    }
-
-    const examples = toSteps(parsed.examples, agentId, 6);
-    const suggested = policySuggestionSchema.safeParse(parsed.policy ?? {});
-    const policy = suggested.success ? suggested.data : policySuggestionSchema.parse({});
-
-    return {
-      steps,
-      examples: examples.length ? examples : steps.slice(0, 4),
-      policy: {
-        ...policy,
-        allowed_hosts: policy.allowed_hosts.length ? policy.allowed_hosts : DEFAULT_POLICY.allowed_hosts,
-        allowed_write_paths: policy.allowed_write_paths.length
-          ? policy.allowed_write_paths
-          : DEFAULT_POLICY.allowed_write_paths,
-        approval_required_tools: policy.approval_required_tools.length
-          ? policy.approval_required_tools
-          : DEFAULT_POLICY.approval_required_tools,
-        rationale:
-          policy.rationale ||
-          `Recommended for ${agentId}: block all four escape vectors, allow only the hosts and write roots this repo needs.`,
-      },
-    };
-  } catch (err) {
-    console.warn("AI planning gateway failed, using deterministic plan:", err);
-    return generateDeterministicPlan(context, excerpts);
+  let parsed: { steps?: unknown; examples?: unknown; policy?: unknown };
+  try {
+    parsed = extractJson(content);
+  } catch {
+    throw new Error("Claude returned an unreadable plan. Try running it again.");
   }
+
+  const agentId = `${context.owner}/${context.repo}`;
+  const steps = toSteps(parsed.steps, agentId, 14);
+  if (steps.length === 0) {
+    throw new Error("Claude could not derive any actions from this repository.");
+  }
+
+  const examples = toSteps(parsed.examples, agentId, 6);
+  const suggested = policySuggestionSchema.safeParse(parsed.policy ?? {});
+  const policy = suggested.success ? suggested.data : policySuggestionSchema.parse({});
+
+  return {
+    steps,
+    examples: examples.length ? examples : steps.slice(0, 4),
+    policy: {
+      ...policy,
+      allowed_hosts: policy.allowed_hosts.length ? policy.allowed_hosts : DEFAULT_POLICY.allowed_hosts,
+      allowed_write_paths: policy.allowed_write_paths.length
+        ? policy.allowed_write_paths
+        : DEFAULT_POLICY.allowed_write_paths,
+      approval_required_tools: policy.approval_required_tools.length
+        ? policy.approval_required_tools
+        : DEFAULT_POLICY.approval_required_tools,
+      rationale:
+        policy.rationale ||
+        `Recommended by Claude for ${agentId}: block all four escape vectors, allow only the hosts and write roots this repo needs.`,
+    },
+  };
 }
+
 
 
