@@ -54,14 +54,14 @@ graph TD
     subgraph ClientTier [Client & Integration Tier]
         AGENT[Autonomous AI Agent]:::client
         UI[TanStack React UI / Console / Live Run]:::client
-        INGEST[Repo Context Ingest & Plan]:::client
+        INGEST[Claude Repo Ingest & Plan (Opus 5)]:::client
     end
 
     subgraph GuardTier [Tier 1: Pre-Execution Guard Firewall]
         GATEWAY[Public Guard REST API / Server Functions]:::server
         ENGINE[Deterministic Guard Engine - engine.ts]:::firewall
         POLICY[Workspace Security Policy & Versioning]:::server
-        ADVISOR[Advisory LLM Risk Layer]:::server
+        ADVISOR[Advisory Claude AI Risk Layer (Opus 5)]:::server
         APPROVAL[Human-in-the-Loop Review Queue]:::server
     end
 
@@ -180,7 +180,7 @@ The final stage yields actionable reports and diagnostic telemetry for downstrea
 
 ## Tech Stack
 
-* **AI & Planning Model**: [OpenAI GPT-5.6-sol](https://openai.com/) (integrated via the secure Lovable AI Gateway)
+* **AI & Planning Model**: [Anthropic Claude](https://anthropic.com/) (**Claude Opus 5** default, with **Claude Sonnet 5.5** fallback via native Anthropic Messages API)
 * **Frontend Framework**: [React 19](https://react.dev/) with [TypeScript](https://www.typescriptlang.org/)
 * **Routing & Meta-framework**: [TanStack Start](https://tanstack.com/start/latest) / [TanStack React Router](https://tanstack.com/router/latest)
 * **Container Sandbox & Orchestration**: [Kubernetes](https://kubernetes.io/) with Pod Security Standards (Restricted), [gVisor](https://gvisor.dev/) (`runsc`), and dynamic `NetworkPolicy` egress isolation
@@ -238,14 +238,20 @@ You can run Containment locally using **Bun** or **NPM**. Ensure you have Node.j
    ```
 
 3. **Configure Environment Variables**
-   Create a `.env` file in the root directory and add your Supabase credentials:
+   Create a `.env` file in the root directory and add your credentials:
    ```env
+   # Supabase Configuration
    SUPABASE_PROJECT_ID="your_supabase_project_id"
    SUPABASE_URL="https://your_supabase_url.supabase.co"
    SUPABASE_PUBLISHABLE_KEY="your_supabase_anon_key"
    VITE_SUPABASE_PROJECT_ID="your_supabase_project_id"
    VITE_SUPABASE_URL="https://your_supabase_url.supabase.co"
    VITE_SUPABASE_PUBLISHABLE_KEY="your_supabase_anon_key"
+
+   # Anthropic Claude Configuration (Claude Opus 5 / Sonnet 5.5)
+   ANTHROPIC_API_KEY="your_anthropic_api_key"
+   # Optional: specify model override (defaults to claude-opus-5)
+   # ANTHROPIC_MODEL="claude-opus-5"
    ```
 
 4. **Run the Development Server**
@@ -272,12 +278,18 @@ You can run Containment locally using **Bun** or **NPM**. Ensure you have Node.j
 3. **Configure Environment Variables**
    Create a `.env` file in the root directory:
    ```env
+   # Supabase Configuration
    SUPABASE_PROJECT_ID="your_supabase_project_id"
    SUPABASE_URL="https://your_supabase_url.supabase.co"
    SUPABASE_PUBLISHABLE_KEY="your_supabase_anon_key"
    VITE_SUPABASE_PROJECT_ID="your_supabase_project_id"
    VITE_SUPABASE_URL="https://your_supabase_url.supabase.co"
    VITE_SUPABASE_PUBLISHABLE_KEY="your_supabase_anon_key"
+
+   # Anthropic Claude Configuration (Claude Opus 5 / Sonnet 5.5)
+   ANTHROPIC_API_KEY="your_anthropic_api_key"
+   # Optional: specify model override (defaults to claude-opus-5)
+   # ANTHROPIC_MODEL="claude-opus-5"
    ```
 
 4. **Run the Development Server**

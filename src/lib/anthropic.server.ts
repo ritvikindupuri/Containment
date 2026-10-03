@@ -1,5 +1,5 @@
-export const DEFAULT_MODEL = "claude-sonnet-5-5";
-export const FALLBACK_MODEL = "claude-sonnet-5";
+export const DEFAULT_MODEL = "claude-opus-5";
+export const FALLBACK_MODEL = "claude-sonnet-5-5";
 
 export async function callClaude({
   system,

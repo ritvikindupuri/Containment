@@ -48,9 +48,7 @@ With Containment, businesses can deploy autonomous coding and operations agents 
 
 Containment is built as a robust, high-performance web application and API platform using modern web technologies:
 * **Frontend**: React 19, TypeScript, Vite, Tailwind CSS (v4), and Radix UI primitives.
-* **Routing & Meta-framework**: TanStack React Router and TanStack React Start, facilitating highly responsive routing and seamless server-to-client server functions.
-* **Data Layer & Real-time Integration**: Supabase (PostgreSQL, Real-time Engine, Row-Level Security, and Auth).
-* **AI & Planning Engine**: OpenAI GPT-5.6-sol integrated via the Lovable AI Gateway for automated workspace mapping, policy suggestions, and intelligent human-in-the-loop review recommendations.
+* **AI & Planning Engine**: Anthropic Claude (**Claude Opus 5** default, with **Claude Sonnet 5.5** fallback) integrated natively via the Anthropic Messages API for automated workspace mapping, policy suggestions, second-opinion risk scoring, and intelligent human-in-the-loop review recommendations.
 
 Unlike basic keyword-matching tools, Containment performs command normalization, path-traversal resolution, and context-aware injection scanning. It tracks policy version histories and records a tamper-proof audit trail of every single decision, ensuring compliance and deep operational visibility.
 
@@ -168,7 +166,7 @@ graph TD
     end
 
     subgraph AI Planner [2. AI Planner & Synthesizer]
-        MODEL[Lovable AI Model / GPT-5]:::core
+        MODEL[Anthropic Claude Opus 5 / Sonnet 5.5]:::core
         PLAN[Plan Synthesis: 10 Steps + 4 Examples]:::core
         SUGGESTION[Policy Suggester: Tailored Allow/Blocklists]:::core
     end
@@ -228,7 +226,7 @@ graph TD
 
 1. **GitHub Repository Parse**: The user inputs a GitHub URL. Containment fetches metadata (description, primary language, stars) and scans the file tree.
 2. **Selective File Excerption**: The agent identifies setup and configuration files (e.g., `package.json`, `requirements.txt`, `Dockerfile`, `Makefile`, `install.sh`) and extracts up to the first 4,000 characters of each to compile a context payload of under 18,000 characters.
-3. **Plan Synthesis**: An OpenAI model via the Lovable AI Gateway ingests the codebase excerpts. It returns:
+3. **Plan Synthesis**: Anthropic Claude (Opus 5 / Sonnet 5.5) ingests the codebase excerpts directly via the native Anthropic Messages API. It returns:
    - **6 Safe Baseline Steps**: Real actions required to clone, install, build, and run the repo's components.
    - **4 Malicious Escape Steps**: Plausible, highly customized repository-grounded attacks (e.g., trying to write out-of-bounds, accessing GCP/AWS metadata keys, harvesting local credentials, starting reverse shells).
    - **Recommended Security Policy**: A tailored set of rules including a custom egress domain allowlist, write path boundaries, and human-gated tools.
@@ -285,7 +283,7 @@ When a repository URL is submitted, the server contacts the GitHub REST API to f
 1. Validates repository public status.
 2. Reads the full tree recursively.
 3. Retrieves configuration files (such as `package.json`, `setup.py`, or `Dockerfile`).
-4. Sends this context package to the OpenAI model to produce a type-safe JSON representation matching our rigorous TypeScript schemas. No mock data is ever generated; the simulation represents how a real agent would compile, run, and potentially attack that specific codebase.
+4. Sends this context package to Anthropic Claude (**Claude Opus 5** / **Claude Sonnet 5.5**) via `src/lib/anthropic.server.ts` to produce a type-safe JSON representation matching our rigorous TypeScript schemas. No mock data is ever generated; the simulation represents how a real agent would compile, run, and potentially attack that specific codebase.
 
 ---
 
@@ -322,7 +320,7 @@ Containment provides a comprehensive user interface for configuring and versioni
 
 The system provides a robust human-in-the-loop mechanism for managing borderline actions:
 1. **Interactive Cards**: Users can review pending actions directly from the dashboard or live run screens.
-2. **AI Security Specialist Assistant**: While reviewing a hold, the user can prompt the AI Reviewer. This background function evaluates the context and returns:
+2. **Claude AI Security Specialist Assistant**: While reviewing a hold, the user can prompt the AI Reviewer (`src/lib/review.server.ts`), which calls Claude Opus 5 directly. This background function evaluates the context and returns:
    - A clear **Approve/Reject** recommendation.
    - 2-3 sentences of clear reasoning.
    - Pre-conditions required to run the action safely.
@@ -348,7 +346,7 @@ Enforcement in Containment is deterministic by design: the same action, the same
 
 The advisory AI risk layer sits **on top of** that engine and adds the nuance rules cannot express, without ever touching the verdict.
 
-* **Implementation**: `src/lib/risk-advisor.server.ts` (`adviseOnRisk`) calls Lovable AI (`openai/gpt-5.6-sol`) with the proposed action, the deterministic findings, the verdict, the risk score and the workspace policy.
+* **Implementation**: `src/lib/risk-advisor.server.ts` (`adviseOnRisk`) calls Anthropic Claude (**`claude-opus-5`** with **`claude-sonnet-5-5`** fallback via `src/lib/anthropic.server.ts`) with the proposed action, the deterministic findings, the verdict, the risk score and the workspace policy.
 * **Server boundary**: exposed as the authenticated server function `adviseOnDecision` in `src/lib/guard.functions.ts`. It is invoked explicitly by the operator, after the decision has already been made and logged — it is never in the enforcement path, so no AI call can delay or alter a block.
 * **Output**: an independent risk score (0-100), a level (`low` / `elevated` / `high` / `critical`), a one-sentence plain-English headline, 2-4 specific concerns, and an `agrees` flag stating whether the model's read matches the engine's verdict.
 * **Disagreement signal**: when `agrees` is `false`, the UI calls it out. That is the highest-value output of this layer — it points at a command that looks dangerous even though no rule fired (a candidate new rule), or a flagged action that is genuinely routine in this repo (a candidate allowlist entry).
