@@ -39,142 +39,175 @@ This sample audit report showcases:
 
 ## System Architecture
 
-Containment employs a two-tier **Defense-in-Depth** architecture separating in-memory policy enforcement from container sandbox execution. The core Guard Engine evaluates actions in single-digit milliseconds, while authorized operations are dispatched directly into an isolated Kubernetes Sandbox Pod.
+Containment employs a multi-tiered, action-level security firewall and isolated execution environment designed to intercept and neutralize AI agent sandbox escapes before execution occurs.
+
+<p align="center">
+  <img src="./docs/architecture-diagram.png" alt="Containment System Architecture Diagram" width="100%" />
+</p>
+<p align="center"><em>Figure 1: Containment Action-Level Security Firewall & Hardened Kubernetes Sandbox Architecture</em></p>
 
 ```mermaid
 graph TD
     %% Styling
-    classDef client fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
-    classDef firewall fill:#7c2d12,stroke:#f97316,stroke-width:2px,color:#f8fafc;
-    classDef server fill:#0f172a,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
-    classDef k8s fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
-    classDef db fill:#0f291e,stroke:#059669,stroke-width:2px,color:#f8fafc;
-    classDef halt fill:#450a0a,stroke:#ef4444,stroke-width:2px,color:#f8fafc;
+    classDef ui fill:#1d4ed8,stroke:#3b82f6,stroke-width:2px,color:#ffffff;
+    classDef server fill:#6b21a8,stroke:#a855f7,stroke-width:2px,color:#ffffff;
+    classDef engine fill:#c2410c,stroke:#f97316,stroke-width:2px,color:#ffffff;
+    classDef k8s fill:#047857,stroke:#10b981,stroke-width:2px,color:#ffffff;
+    classDef queue fill:#d97706,stroke:#f59e0b,stroke-width:2px,color:#ffffff;
+    classDef block fill:#b91c1c,stroke:#ef4444,stroke-width:2px,color:#ffffff;
+    classDef db fill:#0f766e,stroke:#14b8a6,stroke-width:2px,color:#ffffff;
+    classDef agent fill:#4338ca,stroke:#6366f1,stroke-width:2px,color:#ffffff;
+    classDef telemetry fill:#0369a1,stroke:#0284c7,stroke-width:2px,color:#ffffff;
 
-    subgraph ClientTier [Client & Integration Tier]
-        AGENT[Autonomous AI Agent]:::client
-        UI[TanStack React UI / Console / Live Run]:::client
-        INGEST[Claude Repo Ingest & Plan (Opus 5)]:::client
-    end
+    %% Components
+    UI["1. User Interface<br/>Interact with agent, review approvals, manage runs"]:::ui
+    API["2. API Server<br/>Handles auth, input validation, routes requests"]:::server
+    ENGINE["3. Security Policy Engine<br/>Evaluates actions against policies & risk checks"]:::engine
+    K8S["4. Kubernetes Sandbox Runtime<br/>Executes allowed actions in isolated environment"]:::k8s
+    QUEUE["5. Approval Queue<br/>Pauses high-risk actions for human review"]:::queue
+    BLOCKED["6. Blocked Action<br/>Action is not executed & logged"]:::block
+    DB[("Supabase<br/>User auth, policies, approvals, run metadata")]:::db
+    AGENT["7. Repo-Guided Agent Run<br/>Context & Claude AI plans agent actions"]:::agent
+    TELEMETRY["8. Telemetry & Audit Logs<br/>Track runs, decisions, & execution results"]:::telemetry
 
-    subgraph GuardTier [Tier 1: Pre-Execution Guard Firewall]
-        GATEWAY[Public Guard REST API / Server Functions]:::server
-        ENGINE[Deterministic Guard Engine - engine.ts]:::firewall
-        POLICY[Workspace Security Policy & Versioning]:::server
-        ADVISOR[Advisory Claude AI Risk Layer (Opus 5)]:::server
-        APPROVAL[Human-in-the-Loop Review Queue]:::server
-    end
+    %% Flow Connections
+    UI -->|Request| API
+    API -->|Action request| ENGINE
+    API <-->|Read / Write policies, decisions, run metadata| DB
 
-    subgraph K8sTier [Tier 2: Hardened Kubernetes Sandbox Runtime]
-        ORCH[Sandbox Orchestrator - k8s-sandbox.server.ts]:::server
-        POD[Isolated Sandbox Pod - UID 1000]:::k8s
-        PSS[Restricted PSS: ReadOnlyRootFS, Drop ALL Caps]:::k8s
-        NETPOL[Dynamic NetworkPolicy: Egress Restricted & Metadata Blocked]:::k8s
-        VOLS[Ephemeral Volumes: /workspace 2Gi & /tmp 1Gi]:::k8s
-        TELEMETRY[Real-Time Execution Telemetry: Stdout, Stderr, Exit Code]:::k8s
-    end
+    %% Policy Decisions
+    ENGINE -->|Allow| K8S
+    ENGINE -->|Needs Approval| QUEUE
+    ENGINE -->|Deny| BLOCKED
 
-    subgraph DatabaseTier [Supabase Managed Services]
-        DB_POL[Policies & Snapshot Versions]:::db
-        DB_DEC[Decisions Ledger Table]:::db
-        DB_KEYS[Hashed API Keys Table]:::db
-    end
+    %% Approval Loop
+    QUEUE -->|Approve: resume next step| K8S
+    QUEUE -->|Reject: stop run| BLOCKED
+    QUEUE -.->|Record decision: approve or reject| DB
+    QUEUE -.->|Resume next step from approval| ENGINE
 
-    subgraph Quarantine [Quarantine Tier]
-        BLOCK[Quarantined: Zero K8s Execution]:::halt
-    end
-
-    %% Client Interactions
-    AGENT --> |1. Propose Action| GATEWAY
-    UI --> |Launch Live Run / Test Actions| GATEWAY
-    INGEST --> |Suggested Rules| POLICY
-
-    %% Guard Evaluation
-    GATEWAY --> ENGINE
-    ENGINE --> POLICY
-    ENGINE --> |DENY: Threat Detected| BLOCK
-    ENGINE --> |HOLD: Borderline Action| APPROVAL
-    APPROVAL --> |AI Second Opinion| ADVISOR
-    APPROVAL --> |Rejected| BLOCK
-
-    %% Kubernetes Sandbox Dispatch
-    ENGINE --> |ALLOW: Safe Action| ORCH
-    APPROVAL --> |Approved by Human| ORCH
-
-    ORCH --> |2. Execute in Pod| POD
-    POD --- PSS
-    POD --- NETPOL
-    POD --- VOLS
-
-    %% Telemetry & Storage
-    POD --> |3. Stream Execution Results| TELEMETRY
-    TELEMETRY --> |4. Return Exit Code & Output| UI
-    TELEMETRY --> |Commit Audit Log| DB_DEC
-    GATEWAY --> |Verify Key Hash| DB_KEYS
-    GATEWAY --> |CRUD Policy| DB_POL
+    %% Agent Run & Telemetry
+    AGENT -.->|Proposed actions| ENGINE
+    K8S -.->|Execution results & telemetry| TELEMETRY
+    BLOCKED -.->|Security events & rejected payloads| TELEMETRY
+    DB -.->|Historical logs & metrics| TELEMETRY
 ```
-<p align="center"><em>Figure 1: Containment Real-Time Protection & Hardened Kubernetes Sandbox System Architecture Diagram</em></p>
+<p align="center"><em>Figure 2: Component Interaction & Decision Pipeline Topology</em></p>
 
-### Flow-by-Flow Explanation
+### Flow-by-Flow Architecture Walkthrough
 
-This section maps directly to the Containment architectural pipeline, detailing how policy ingestion occurs and how individual agent actions are intercepted, evaluated, and secured in real-time.
-
----
-
-#### Stage 1: Repository-Guided Policy Setup (One-Time)
-This stage establishes the initial boundary configuration by digesting repository metadata to build a context-aware defense posture.
-1. **Ingest Repository**: The user provides a target repository URL. The backend fetches repository file hierarchies, project configurations, dependency listings, and tool configurations.
-2. **Parse Codebase Structure**: The system parses the codebase structure to automatically discover legitimate operational boundaries, identifying sensitive directories, configurations, and network dependencies.
-3. **Agent-Optimized Policy Generation (YAML/JSON)**: Based on discovered constraints, the policy engine constructs an agent-optimized rule profile (using JSON or YAML schemas) specifying allowed commands, network domain allowlists, write-permitted paths, and restricted tools.
-4. **Policy Sign-off & Storage (Supabase/Postgres)**: The administrator reviews, tweaks, and signs off on the policy. The approved configuration is version-controlled and written directly into the Supabase PostgreSQL database under the active workspace security policy.
+The Containment architecture is partitioned into **eight coordinated operational components** and a unified **Supabase persistence tier**, mapping every phase from repository context ingest and policy evaluation to sandbox execution and audit telemetry:
 
 ---
 
-#### Stage 2: Runtime Guard Pipeline (Every Action)
-For every single action an active agent attempts, the Runtime Guard Pipeline acts as an inline interceptor.
-1. **Agent Action Interception (Public Guard API)**: Prior to tool or shell execution, the agent's framework intercepts the proposed action and dispatches a JSON payload containing the action category, parameters, context, and client metadata to the public Containment REST API (`/api/public/v1/guard`).
-2. **Cryptographic Verification (HMAC/SHA-256)**: The gateway extracts the authentication credentials or signatures (e.g., from custom security headers) and performs rapid, secure verification against hashed keys in the Database.
-3. **Content Parsing & Context Assembly**: Once verified, the engine normalizes the payload (e.g., stripping escape codes, resolving relative file paths) and matches the incoming payload parameters with the current active version of the workspace policy.
+#### 1. User Interface (UI)
+* **Role**: Primary operator console and developer control plane.
+* **Responsibilities**:
+  - Provides a real-time reactive interface for configuring agent boundaries, initiating live agent runs, monitoring step-by-step executions, and adjudicating approval requests.
+  - Interactive modules include the **Repository Setup Wizard**, **Live Agent Runner**, **Rule Testing Playground**, **Policy Version Editor**, and **Interactive K8s Sandbox HUD**.
+* **Interactions**:
+  - Dispatches authenticated requests (`Request ->`) to the **2. API Server** for all operations.
+  - Subscribes to real-time execution telemetry, decision feeds, and container status streams.
 
 ---
 
-#### Stage 3: Decision & Enforcement
-At the heart of the firewall is the real-time evaluation of risk scoring and rule matching.
-1. **Policy Constraint Matching**: The parsed action parameters are checked against the deterministic policy boundaries (e.g., matching a executed shell command against binary deny-lists or checking an outgoing IP request against domain allowlists).
-2. **Risk Scoring & LLM Guard Analysis**: The deterministic rules generate an base risk score (0-100). Simultaneously, an optional advisory LLM Guard layer analyzes the action's intent to detect advanced obfuscations, prompt injection, and semantic threats, providing an independent risk evaluation.
-3. **Real-Time Interdiction Decision (Allow, Deny, or Escalate/Redact)**: A final action verdict is computed instantly by comparing calculated risk scores against policy thresholds:
-   - **ALLOW**: If the score is below the manual approval threshold, the action is approved.
-   - **DENY**: If the score exceeds the deny threshold, the execution is immediately blocked.
-   - **ESCALATE / REDACT**: Borderline scores halt execution and route the request to a human-in-the-loop approval queue.
+#### 2. API Server
+* **Role**: Central API gateway, request router, and session authenticator.
+* **Responsibilities**:
+  - Handles authentication and session validation (supporting bearer tokens, GoTrue sessions, and cryptographically hashed API keys for external autonomous frameworks).
+  - Performs strict input validation and payload sanitization across all endpoints (including the public `/api/public/v1/guard` endpoint).
+  - Routes action requests dynamically between the policy engine, human review queues, and container execution services.
+* **Interactions**:
+  - Interacts with **Supabase** via bidirectional read/write channels for active policies, decisions, key hashes, and run metadata (`Read / Write policies, decisions, run metadata`).
+  - Passes normalized action requests (`Action request ->`) directly to the **3. Security Policy Engine** for evaluation.
 
 ---
 
-#### Stage 4: Audit & Evidence Storage
-After a decision is rendered, Containment logs detailed artifacts to guarantee complete traceability.
-1. **Encrypt Action & Evidence**: The raw action payload, associated runtime variables, and triggered rule profiles are encrypted to prevent unauthorized modification or exposure of sensitive command payloads.
-2. **Write Immutable Ledger Log**: The outcome is committed to the PostgreSQL-backed audit ledger, creating a tamper-resistant record of the decision verdict, specific rule match details, and chronological timestamps.
-3. **Sync with Management Console**: Real-time subscriptions push the new ledger record immediately to open dashboard sessions, providing administrators with live timeline updates.
+#### 3. Security Policy Engine
+* **Role**: The core deterministic action firewall and real-time risk evaluator (<10ms).
+* **Six Core Security Checks**:
+  1. 🐚 **Shell Command Checks**: Normalizes terminal commands (stripping escape tricks, base64 payloads, obfuscated subshells), verifies against command denial lists, and catches reverse shell patterns (`bash -i >& /dev/tcp/...`, `/dev/udp/`, `mkfifo`, etc.).
+  2. 📁 **Filesystem Access Checks**: Evaluates path traversal attempts (`../`, symlink following), detects sensitive file access (`/etc/shadow`, `~/.ssh`, `/proc/1/root`, `~/.aws/credentials`), and enforces strict write-path boundaries (e.g., scoping writes exclusively to `/workspace` and `/tmp`).
+  3. 🌐 **Network and SSRF Checks**: Restricts outbound traffic to domain allowlists (e.g., package registries, authorized APIs), drops unverified external endpoints, mitigates DNS rebinding, and blocks SSRF to cloud metadata IPs (`169.254.169.254`) and internal RFC1918 subnets.
+  4. 🔧 **Tool Call Validation**: Inspects autonomous agent tool invocations, validating parameter types, required arguments, and high-impact operations (e.g., PR creation, database seeding, email dispatch).
+  5. 🛡️ **Prompt-Injection Checks**: Performs context-aware semantic analysis over untrusted inputs (README files, issue comments, scraped web pages, downloaded scripts) to catch instruction overrides, indirect prompt injections, and jailbreaks.
+  6. 📊 **Risk Scoring and Rule Matching**: Aggregates violation weights into a deterministic 0–100 composite risk score and matches against policy thresholds.
+* **Three Decision Verdicts**:
+  - **`Allow` (Green)** $\rightarrow$ Action is verified safe and adheres to all allowlists. Dispatched to **4. Kubernetes Sandbox Runtime**.
+  - **`Needs Approval` (Orange)** $\rightarrow$ Action is borderline or triggers a sensitive tool rule. Suspends execution and routes to **5. Approval Queue**.
+  - **`Deny` (Red)** $\rightarrow$ Critical threat or policy violation detected. Intercepted immediately and routed to **6. Blocked Action**.
 
 ---
 
-#### Management Console Interactions
-Administrators manage policy state and supervise operations through a secure browser interface:
-* **Dashboard**: Displays high-level analytics, including real-time risk ratios, blocked threat counts, and active traffic graphs.
-* **Policies**: Allows users to dynamically edit, save, and release newer versions of workspace boundaries with seamless rollbacks.
-* **Approvals**: A central holding interface where paused actions are reviewed, contextual AI recommendations are generated, and operators approve or reject executions.
-* **Audit History**: A complete list of all decisions, equipped with advanced filters for forensic investigation.
-* **Reports**: Compiles runtime statistics and generates compliance audit documents.
-* **Settings**: Manages API keys, workspace credentials, integration preferences, and user roles.
+#### 4. Kubernetes Sandbox Runtime
+* **Role**: Hardened, defense-in-depth container execution jail for authorized actions.
+* **Hardened Isolation Standards (Restricted Pod Security Standards)**:
+  - 👤 **Non-root user (UID 1000)**: Container processes run with unprivileged user permissions.
+  - 🔒 **Read-only root filesystem (`readOnlyRootFilesystem: true`)**: Prevents unauthorized OS-level modifications, rootkit installations, or persistent binary tampering.
+  - 🚫 **Dropped ALL capabilities (`drop: ["ALL"]`)**: Linux kernel capabilities are completely stripped from the container.
+  - 🛡️ **RuntimeDefault seccomp**: Restricts dangerous system calls at the kernel level.
+  - 📦 **Ephemeral `/workspace` and `/tmp`**: Isolated tmpfs / memory-backed ephemeral storage volumes that discard all state upon session completion.
+  - 🛑 **Ingress Denied**: No inbound connections are permitted into the sandbox pod.
+  - 🌐 **Restricted Egress**: Dynamic Kubernetes `NetworkPolicy` isolates container networking, blocking cloud metadata endpoints (`169.254.169.254`) and private cluster CIDRs.
+* **Execution Modes**:
+  - **Live Kubernetes Cluster**: Dispatches execution directly into managed sandbox pods via Kubernetes API / exec stream.
+  - **Local Execution Fallback**: A built-in high-fidelity container sandbox emulator for environments without active Kubernetes clusters, enabling offline developer testing and instant local verification.
 
 ---
 
-#### Outputs & Insights
-The final stage yields actionable reports and diagnostic telemetry for downstream security teams:
-* **Decision Timeline**: An interactive chronological log mapping the agent's activities and interventions step-by-step.
-* **Policy Version Info**: Real-time indicators of which version of the guard policy evaluated and governed each specific action.
-* **Risk Findings**: Aggregated vulnerability highlights, detailing patterns of prompt injection or system traverse attempts.
-* **PDF Report**: Fully styled, branded audit documents compiling workspace configurations, metrics, and detailed decision ledgers for compliance sign-off.
-* **Evidence Export**: Machine-readable JSON audits and log exports available for SIEM or external analysis pipelines.
+#### 5. Approval Queue
+* **Role**: Centralized human-in-the-loop review station for high-risk or ambiguous operations.
+* **Features**:
+  - **Pause on Demand**: Suspends the agent run pipeline automatically whenever an action triggers the `Needs Approval` threshold (e.g., git pushes, credential access, external package deployments).
+  - **Review Action Details & AI Risk Analysis**: Anthropic Claude provides an independent second opinion for the human reviewer, detailing risk severity, threat vectors, plain-English explanations, and safe preconditions.
+  - **Human Operator Decisions**:
+    - **`Approve (resume next step)` (Green)**: Operator signs off on the action $\rightarrow$ Execution resumes and dispatches to **4. Kubernetes Sandbox Runtime**, while the pipeline continues to subsequent steps (`Resume next step -> 3. Security Policy Engine`).
+    - **`Reject (stop run)` (Red)**: Operator denies the operation $\rightarrow$ Halts execution permanently and routes to **6. Blocked Action**.
+  - **Feedback Loop**: Writes human review timestamps, reviewer identities, and rationale directly to **Supabase** (`Record decision (approve or reject) ->`).
+
+---
+
+#### 6. Blocked Action
+* **Role**: Threat quarantine and execution termination.
+* **Mechanisms**:
+  - **Zero Execution Guarantee**: Dangerous shell commands, traversal attacks, and unauthorized tool calls are intercepted in-flight and **never** reach the operating system or Kubernetes runtime.
+  - **Request Rejected with Reason**: Returns a structured diagnostic error response to the caller, highlighting triggered rules, violated thresholds, and security recommendations.
+  - **Event Logged to Supabase**: Fully audited in the immutable security log for forensic tracking, threat modeling, and team retrospectives.
+
+---
+
+#### 7. Repo-Guided Agent Run
+* **Role**: Context-aware agent planning and realistic test scenario synthesis powered by Anthropic Claude.
+* **Planning Pipeline**:
+  1. **Context & Relevant Files**: Ingests GitHub repository file trees, build configs (`Makefile`, `package.json`, `requirements.txt`), Dockerfiles, and documentation.
+  2. **Claude AI Processing**: Anthropic Claude (Opus 5 default / Sonnet 5.5 fallback) analyzes the project structure to draft:
+     - **Proposed Action Plan**: Legitimate compile, dependency install, test, and startup targets.
+     - **Risk Guidance and Analysis**: Threat modeling specific to the repository's architecture and language ecosystem.
+     - **Policy-Aware Suggestions**: Recommended boundaries matching the repo's actual dependency and network requirements.
+     - **Not Executed Directly**: Planned actions are structured proposals only—they are **never executed directly**.
+* **Interactions**:
+  - Streams proposed actions (`Proposed actions ->`) directly into **3. Security Policy Engine** for sequential evaluation and guarding.
+
+---
+
+#### 8. Telemetry & Audit Logs
+* **Role**: Comprehensive visibility, live observability, and compliance auditing.
+* **Four Telemetry Dimensions**:
+  - 📊 **Run Metrics and Status**: Real-time tracking of run durations, risk mitigation ratios, total intercepted operations, and pod container resource health.
+  - 📝 **Action Logs and Decisions**: Step-by-step audit trails capturing exact commands, arguments, decision outcomes (`ALLOW`, `HOLD`, `DENY`), and active policy version tags.
+  - 🛡️ **Security Events and Blocked Actions**: High-priority alert streams isolating prompt-injection exploits, unauthorized egress calls, and malicious binary attempts.
+  - ⏱️ **Execution Results and Artifacts**: Live stdout/stderr terminal streaming, exit codes, diff captures, and one-click exportable, date-stamped **Printable PDF Audit Reports**.
+
+---
+
+#### Central Persistence Tier: Supabase
+* **Role**: Unified data layer securing all operational state.
+* **Managed Services & Schema**:
+  - **User Authentication**: Secure GoTrue sessions, OAuth tokens, and cryptographically hashed agent API keys.
+  - **Policies and Rules**: Version-controlled workspace security policies with full historical snapshots and instant rollback support.
+  - **Approval Decisions**: Real-time tracking of pending, approved, and rejected human-in-the-loop review queues.
+  - **Run History and Metadata**: Tamper-evident ledger preserving every action request, risk breakdown, and container execution telemetry log.
+
 
 ---
 

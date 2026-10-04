@@ -56,93 +56,108 @@ Unlike basic keyword-matching tools, Containment performs command normalization,
 
 ## 3. System Architecture
 
-The System Architecture of Containment is organized into clear tiers: the **Client Interface**, the **Nitro/React-Start Application Server**, and the **Supabase Backend Services**. External applications integrate directly via the high-performance public API.
+The System Architecture of Containment is organized into eight coordinated operational components and a unified persistence tier, establishing end-to-end interception between autonomous AI agents and execution runtimes.
 
-### System Architecture Diagram
+<p align="center">
+  <img src="./docs/architecture-diagram.png" alt="Containment System Architecture Diagram" width="100%" />
+</p>
+<p align="center"><em>Figure 1: System Architecture Diagram of the Containment Platform with Kubernetes Sandbox Runtime</em></p>
 
 ```mermaid
 graph TD
     %% Styling
-    classDef client fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
-    classDef server fill:#0f172a,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
-    classDef db fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
-    classDef api fill:#7c2d12,stroke:#f97316,stroke-width:2px,color:#f8fafc;
+    classDef ui fill:#1d4ed8,stroke:#3b82f6,stroke-width:2px,color:#ffffff;
+    classDef server fill:#6b21a8,stroke:#a855f7,stroke-width:2px,color:#ffffff;
+    classDef engine fill:#c2410c,stroke:#f97316,stroke-width:2px,color:#ffffff;
+    classDef k8s fill:#047857,stroke:#10b981,stroke-width:2px,color:#ffffff;
+    classDef queue fill:#d97706,stroke:#f59e0b,stroke-width:2px,color:#ffffff;
+    classDef block fill:#b91c1c,stroke:#ef4444,stroke-width:2px,color:#ffffff;
+    classDef db fill:#0f766e,stroke:#14b8a6,stroke-width:2px,color:#ffffff;
+    classDef agent fill:#4338ca,stroke:#6366f1,stroke-width:2px,color:#ffffff;
+    classDef telemetry fill:#0369a1,stroke:#0284c7,stroke-width:2px,color:#ffffff;
 
-    %% Subgraphs
-    subgraph Client Tier [Client Interface]
-        UI[TanStack Router Frontend]:::client
-        PLAY[Console & Playground UI]:::client
-        DASH[Audit Dashboard]:::client
-        LIVE[Live Agent Run UI]:::client
-    end
+    %% Components
+    UI["1. User Interface<br/>Interact with agent, review approvals, manage runs"]:::ui
+    API["2. API Server<br/>Handles auth, input validation, routes requests"]:::server
+    ENGINE["3. Security Policy Engine<br/>Evaluates actions against policies & risk checks"]:::engine
+    K8S["4. Kubernetes Sandbox Runtime<br/>Executes allowed actions in isolated environment"]:::k8s
+    QUEUE["5. Approval Queue<br/>Pauses high-risk actions for human review"]:::queue
+    BLOCKED["6. Blocked Action<br/>Action is not executed & logged"]:::block
+    DB[("Supabase<br/>User auth, policies, approvals, run metadata")]:::db
+    AGENT["7. Repo-Guided Agent Run<br/>Context & Claude AI plans agent actions"]:::agent
+    TELEMETRY["8. Telemetry & Audit Logs<br/>Track runs, decisions, & execution results"]:::telemetry
 
-    subgraph Server Tier [TanStack React Start / Nitro Server]
-        FN[Server Functions]:::server
-        GE[Guard Engine - engine.ts]:::server
-        RE[AI Reviewer Server - review.server.ts]:::server
-        AP[AI Agent Planner - agent-run.server.ts]:::server
-    end
+    %% Flow Connections
+    UI -->|Request| API
+    API -->|Action request| ENGINE
+    API <-->|Read / Write policies, decisions, run metadata| DB
 
-    subgraph Database Tier [Supabase Managed Services]
-        S_AUTH[Supabase Auth]:::db
-        DB_POL[Policies & Versions Tables]:::db
-        DB_DEC[Decisions Log Table]:::db
-        DB_KEYS[API Keys Table]:::db
-    end
+    %% Policy Decisions
+    ENGINE -->|Allow| K8S
+    ENGINE -->|Needs Approval| QUEUE
+    ENGINE -->|Deny| BLOCKED
 
-    subgraph External Production [Production Environment]
-        P_AGENT[Your Production AI Agent]:::api
-        REST_API[Public Guard REST API v1]:::api
-    end
+    %% Approval Loop
+    QUEUE -->|Approve: resume next step| K8S
+    QUEUE -->|Reject: stop run| BLOCKED
+    QUEUE -.->|Record decision: approve or reject| DB
+    QUEUE -.->|Resume next step from approval| ENGINE
 
-    subgraph K8s Tier [Kubernetes Sandbox Runtime]
-        K8S_SRV[Sandbox Orchestrator - k8s-sandbox.server.ts]:::server
-        K8S_POD[Isolated Sandbox Pod - UID 1000, ReadOnlyRootFS, Drop ALL]:::db
-        K8S_NET[NetworkPolicy - Egress Restricted & Metadata Blocked]:::db
-    end
-
-    %% Client Interactions
-    UI --> |Fetch Policy, Keys, Logs, Sandbox Status| FN
-    FN --> GE
-    PLAY --> |Evaluate Sandbox Actions| FN
-    LIVE --> |Launch Server-Side Run Simulation| FN
-
-    %% Server Functions Internal Orchestration
-    FN --> |Read Context / Draft Run Plan| AP
-    FN --> |Run AI recommendation on Hold| RE
-    FN --> |Dispatch ALLOWED Actions| K8S_SRV
-    K8S_SRV --> |Execute in Pod| K8S_POD
-    K8S_SRV --> |Enforce Egress Policy| K8S_NET
-
-    %% API Integrations
-    P_AGENT --> |POST /api/public/v1/guard| REST_API
-    REST_API --> |Fetch Key & Enforce Policy| GE
-    REST_API --> |Optional: execute: true when ALLOWED| K8S_SRV
-    REST_API --> |Insert Decision & Audit| DB_DEC
-
-    %% Server to Database Interconnect
-    FN --> |Auth verification & Middleware| S_AUTH
-    FN --> |CRUD on Policies| DB_POL
-    FN --> |Read/Write Logged Decisions| DB_DEC
-    FN --> |Create / Revoke Keys| DB_KEYS
-    REST_API --> |Verify Key Hash| DB_KEYS
-
+    %% Agent Run & Telemetry
+    AGENT -.->|Proposed actions| ENGINE
+    K8S -.->|Execution results & telemetry| TELEMETRY
+    BLOCKED -.->|Security events & rejected payloads| TELEMETRY
+    DB -.->|Historical logs & metrics| TELEMETRY
 ```
-<p align="center"><em>Figure 1: System Architecture Diagram of the Containment Platform with Kubernetes Sandbox Runtime</em></p>
+<p align="center"><em>Figure 2: Component Interaction & Decision Pipeline Topology</em></p>
 
 ### System Components & Data Flows
 
-1. **Client Tier**: Fully interactive frontend utilizing TanStack React Router. React Query manages real-time caching, UI revalidations, and polling intervals (such as updating the dashboard decisions list every 15 seconds to sync incoming API logs).
-2. **Server Tier**: Powered by Nitro and React Start. Rather than decoupling server logic into a separate repository, server functions run directly in a type-safe context, interacting directly with database clients and AI gateways.
-3. **Guard Engine (`engine.ts`)**: A completely stateless, deterministic code compiler/regex matching matrix. It is the heart of the system, written purely in TypeScript for ultra-low latency execution under 10ms.
-4. **Kubernetes Sandbox Tier (`src/lib/sandbox/`)**:
-   - **`k8s-client.ts`**: Connects via in-cluster ServiceAccounts, kubeconfig, or API endpoints. Features an automatic local emulation engine for zero-dependency local testing.
-   - **`k8s-sandbox.server.ts`**: Dispatches allowed actions into hardened pods running under **Restricted Pod Security Standards** (non-root UID 1000, read-only rootfs, dropped capabilities `ALL`, dynamic egress `NetworkPolicy`, optional `gVisor` runsc).
-   - **Execution Telemetry**: Captures exit codes, stdout, stderr, execution duration, and resource utilization for UI streaming and PDF reports.
-5. **Supabase Managed Services**:
-   - **`policies` & `policy_versions`**: Store user-configured settings and complete snapshot histories, ensuring that changing a policy never alters the historical context of past logs.
-   - **`api_keys`**: Store prefixes and cryptographic SHA-256 hashes of agent API keys (`agk_live_...`), ensuring that plain-text API keys are never exposed in database backups.
-   - **`decisions`**: Logs every evaluation (allow, hold, deny, risk score, triggered rules, and raw JSON payloads) for immediate visualization.
+1. **1. User Interface (UI)**:
+   - Built on React 19 and TanStack Router.
+   - Provides live operator controls for initiating agent workflows, inspecting runtime sandboxes, tuning security boundaries, and adjudicating paused approvals.
+   - Dispatches authenticated requests (`Request ->`) to the **API Server** and receives streaming telemetry updates.
+
+2. **2. API Server**:
+   - High-throughput API gateway powered by TanStack React Start and Nitro.
+   - Handles session validation, GoTrue bearer authentication, cryptographically hashed API keys (`agk_live_...`), and input payload validation.
+   - Exchanges policy state, decision logs, and run metadata bidirectionally with **Supabase**.
+   - Normalizes and forwards action payloads (`Action request ->`) to the **Security Policy Engine**.
+
+3. **3. Security Policy Engine (`engine.ts`)**:
+   - Pure TypeScript deterministic evaluation engine executing sub-10ms rule matching.
+   - Six specialized inspection vectors:
+     - *Shell command checks*: AST and regex normalization, command deny-lists, reverse shell syntax.
+     - *Filesystem access checks*: Path traversal sanitization, sensitive directory traps (`/etc/shadow`, `~/.ssh`, `/proc/1/root`), write boundary enforcement.
+     - *Network and SSRF checks*: Domain allowlisting, DNS rebinding mitigation, RFC1918 internal IP blocks, cloud metadata IP (`169.254.169.254`) interdiction.
+     - *Tool call validation*: Type verification, parameter gating, sensitive capability isolation.
+     - *Prompt-injection checks*: Semantic analysis over untrusted context to intercept instruction injection.
+     - *Risk scoring and rule matching*: Computes composite 0–100 risk score and compares with policy thresholds.
+   - Tri-verdict routing: `Allow` $\rightarrow$ **Kubernetes Sandbox Runtime**, `Needs Approval` $\rightarrow$ **Approval Queue**, `Deny` $\rightarrow$ **Blocked Action**.
+
+4. **4. Kubernetes Sandbox Runtime (`src/lib/sandbox/`)**:
+   - Executes authorized actions in an isolated container environment enforcing Kubernetes **Restricted Pod Security Standards**.
+   - Specifications: Non-root user (UID 1000), read-only root filesystem, dropped `ALL` capabilities, `RuntimeDefault` seccomp, ephemeral `/workspace` and `/tmp` volumes, denied ingress, and strict egress `NetworkPolicy`.
+   - Built-in **Local Execution Fallback** emulator guarantees complete functionality without an active Kubernetes cluster.
+
+5. **5. Approval Queue**:
+   - Halts high-risk or sensitive actions for human operator intervention.
+   - Powered by an advisory AI risk analysis layer (Anthropic Claude) providing plain-English threat summaries and safe preconditions.
+   - Approvals resume execution into the sandbox runtime and loop back to evaluate subsequent steps. Rejections terminate execution and route to **Blocked Action**. Decisions are recorded immutably to **Supabase**.
+
+6. **6. Blocked Action**:
+   - Immediate quarantine ensuring zero unauthorized shell commands, traversal reads, or tool calls execute.
+   - Rejections return structured diagnostic errors with triggered rule IDs and policy guidance, while logging the incident to **Supabase**.
+
+7. **7. Repo-Guided Agent Run**:
+   - Ingests repository files and build configurations, utilizing Anthropic Claude (Opus 5 / Sonnet 5.5) to synthesize tailored setup targets, sandbox-escape challenge attempts, and policy allowlists.
+   - Actions are planned as non-executable proposals and streamed sequentially into the **Security Policy Engine**.
+
+8. **8. Telemetry & Audit Logs**:
+   - Four-dimensional operational observability: Run metrics and status, granular action logs with policy version stamps, security alerts for blocked threats, and execution results with printable PDF compliance exports.
+
+9. **Supabase Persistence Tier**:
+   - Central PostgreSQL storage with Row-Level Security, managing user identities, policy version trees, approval queues, and immutable decision ledgers.
 
 ---
 
