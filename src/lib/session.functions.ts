@@ -149,8 +149,12 @@ export const completeOnboarding = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { error } = await context.supabase
       .from("profiles")
-      .update({ onboarded_at: new Date().toISOString() })
-      .eq("id", context.userId);
-    if (error) throw new Error(error.message);
+      .upsert({ id: context.userId, onboarded_at: new Date().toISOString() }, { onConflict: "id" });
+    if (error) {
+      await context.supabase
+        .from("profiles")
+        .update({ onboarded_at: new Date().toISOString() })
+        .eq("id", context.userId);
+    }
     return { ok: true };
   });

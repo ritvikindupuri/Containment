@@ -76,9 +76,9 @@ export function useFlowProgress() {
       title: "Watch an agent get guarded",
       body: "The agent runs its whole plan for that repo, one action at a time. Risky actions stop; borderline ones wait for you.",
       cta: "Open live run",
-      unlocked: setupDone,
+      unlocked: true,
       done: runDone,
-      lockedHint: "Finish setup first: ingest a repo, approve its policy and run one suggested action.",
+      lockedHint: "",
     },
     {
       key: "audit",

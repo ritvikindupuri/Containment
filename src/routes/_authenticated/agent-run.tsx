@@ -3,7 +3,6 @@ import { AppShell } from "@/components/guard/app-shell";
 import { GettingStarted } from "@/components/guard/getting-started";
 import { StageIntro } from "@/components/guard/stage-intro";
 import { AgentRun } from "@/components/guard/agent-run";
-import { FlowGate } from "@/components/guard/flow-gate";
 
 export const Route = createFileRoute("/_authenticated/agent-run")({
   head: () => ({
@@ -29,7 +28,6 @@ export const Route = createFileRoute("/_authenticated/agent-run")({
 function AgentRunPage() {
   return (
     <AppShell>
-      <FlowGate stage="live_run">
       <GettingStarted />
       <StageIntro stage="live_run" />
       <header className="mb-6">
@@ -39,7 +37,6 @@ function AgentRunPage() {
         </p>
       </header>
       <AgentRun />
-      </FlowGate>
     </AppShell>
   );
 }
