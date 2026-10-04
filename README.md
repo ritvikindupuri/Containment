@@ -46,54 +46,6 @@ Containment employs a multi-tiered, action-level security firewall and isolated 
 </p>
 <p align="center"><em>Figure 1: Containment Action-Level Security Firewall & Hardened Kubernetes Sandbox Architecture</em></p>
 
-```mermaid
-graph TD
-    %% Styling
-    classDef ui fill:#1d4ed8,stroke:#3b82f6,stroke-width:2px,color:#ffffff;
-    classDef server fill:#6b21a8,stroke:#a855f7,stroke-width:2px,color:#ffffff;
-    classDef engine fill:#c2410c,stroke:#f97316,stroke-width:2px,color:#ffffff;
-    classDef k8s fill:#047857,stroke:#10b981,stroke-width:2px,color:#ffffff;
-    classDef queue fill:#d97706,stroke:#f59e0b,stroke-width:2px,color:#ffffff;
-    classDef block fill:#b91c1c,stroke:#ef4444,stroke-width:2px,color:#ffffff;
-    classDef db fill:#0f766e,stroke:#14b8a6,stroke-width:2px,color:#ffffff;
-    classDef agent fill:#4338ca,stroke:#6366f1,stroke-width:2px,color:#ffffff;
-    classDef telemetry fill:#0369a1,stroke:#0284c7,stroke-width:2px,color:#ffffff;
-
-    %% Components
-    UI["1. User Interface<br/>Interact with agent, review approvals, manage runs"]:::ui
-    API["2. API Server<br/>Handles auth, input validation, routes requests"]:::server
-    ENGINE["3. Security Policy Engine<br/>Evaluates actions against policies & risk checks"]:::engine
-    K8S["4. Kubernetes Sandbox Runtime<br/>Executes allowed actions in isolated environment"]:::k8s
-    QUEUE["5. Approval Queue<br/>Pauses high-risk actions for human review"]:::queue
-    BLOCKED["6. Blocked Action<br/>Action is not executed & logged"]:::block
-    DB[("Supabase<br/>User auth, policies, approvals, run metadata")]:::db
-    AGENT["7. Repo-Guided Agent Run<br/>Context & Claude AI plans agent actions"]:::agent
-    TELEMETRY["8. Telemetry & Audit Logs<br/>Track runs, decisions, & execution results"]:::telemetry
-
-    %% Flow Connections
-    UI -->|Request| API
-    API -->|Action request| ENGINE
-    API <-->|Read / Write policies, decisions, run metadata| DB
-
-    %% Policy Decisions
-    ENGINE -->|Allow| K8S
-    ENGINE -->|Needs Approval| QUEUE
-    ENGINE -->|Deny| BLOCKED
-
-    %% Approval Loop
-    QUEUE -->|Approve: resume next step| K8S
-    QUEUE -->|Reject: stop run| BLOCKED
-    QUEUE -.->|Record decision: approve or reject| DB
-    QUEUE -.->|Resume next step from approval| ENGINE
-
-    %% Agent Run & Telemetry
-    AGENT -.->|Proposed actions| ENGINE
-    K8S -.->|Execution results & telemetry| TELEMETRY
-    BLOCKED -.->|Security events & rejected payloads| TELEMETRY
-    DB -.->|Historical logs & metrics| TELEMETRY
-```
-<p align="center"><em>Figure 2: Component Interaction & Decision Pipeline Topology</em></p>
-
 ### Flow-by-Flow Architecture Walkthrough
 
 The Containment architecture is partitioned into **eight coordinated operational components** and a unified **Supabase persistence tier**, mapping every phase from repository context ingest and policy evaluation to sandbox execution and audit telemetry:
@@ -126,12 +78,12 @@ The Containment architecture is partitioned into **eight coordinated operational
 #### 3. Security Policy Engine
 * **Role**: The core deterministic action firewall and real-time risk evaluator (<10ms).
 * **Six Core Security Checks**:
-  1. 🐚 **Shell Command Checks**: Normalizes terminal commands (stripping escape tricks, base64 payloads, obfuscated subshells), verifies against command denial lists, and catches reverse shell patterns (`bash -i >& /dev/tcp/...`, `/dev/udp/`, `mkfifo`, etc.).
-  2. 📁 **Filesystem Access Checks**: Evaluates path traversal attempts (`../`, symlink following), detects sensitive file access (`/etc/shadow`, `~/.ssh`, `/proc/1/root`, `~/.aws/credentials`), and enforces strict write-path boundaries (e.g., scoping writes exclusively to `/workspace` and `/tmp`).
-  3. 🌐 **Network and SSRF Checks**: Restricts outbound traffic to domain allowlists (e.g., package registries, authorized APIs), drops unverified external endpoints, mitigates DNS rebinding, and blocks SSRF to cloud metadata IPs (`169.254.169.254`) and internal RFC1918 subnets.
-  4. 🔧 **Tool Call Validation**: Inspects autonomous agent tool invocations, validating parameter types, required arguments, and high-impact operations (e.g., PR creation, database seeding, email dispatch).
-  5. 🛡️ **Prompt-Injection Checks**: Performs context-aware semantic analysis over untrusted inputs (README files, issue comments, scraped web pages, downloaded scripts) to catch instruction overrides, indirect prompt injections, and jailbreaks.
-  6. 📊 **Risk Scoring and Rule Matching**: Aggregates violation weights into a deterministic 0–100 composite risk score and matches against policy thresholds.
+  1. **Shell Command Checks**: Normalizes terminal commands (stripping escape tricks, base64 payloads, obfuscated subshells), verifies against command denial lists, and catches reverse shell patterns (`bash -i >& /dev/tcp/...`, `/dev/udp/`, `mkfifo`, etc.).
+  2. **Filesystem Access Checks**: Evaluates path traversal attempts (`../`, symlink following), detects sensitive file access (`/etc/shadow`, `~/.ssh`, `/proc/1/root`, `~/.aws/credentials`), and enforces strict write-path boundaries (e.g., scoping writes exclusively to `/workspace` and `/tmp`).
+  3. **Network and SSRF Checks**: Restricts outbound traffic to domain allowlists (e.g., package registries, authorized APIs), drops unverified external endpoints, mitigates DNS rebinding, and blocks SSRF to cloud metadata IPs (`169.254.169.254`) and internal RFC1918 subnets.
+  4. **Tool Call Validation**: Inspects autonomous agent tool invocations, validating parameter types, required arguments, and high-impact operations (e.g., PR creation, database seeding, email dispatch).
+  5. **Prompt-Injection Checks**: Performs context-aware semantic analysis over untrusted inputs (README files, issue comments, scraped web pages, downloaded scripts) to catch instruction overrides, indirect prompt injections, and jailbreaks.
+  6. **Risk Scoring and Rule Matching**: Aggregates violation weights into a deterministic 0–100 composite risk score and matches against policy thresholds.
 * **Three Decision Verdicts**:
   - **`Allow` (Green)** $\rightarrow$ Action is verified safe and adheres to all allowlists. Dispatched to **4. Kubernetes Sandbox Runtime**.
   - **`Needs Approval` (Orange)** $\rightarrow$ Action is borderline or triggers a sensitive tool rule. Suspends execution and routes to **5. Approval Queue**.
@@ -142,13 +94,13 @@ The Containment architecture is partitioned into **eight coordinated operational
 #### 4. Kubernetes Sandbox Runtime
 * **Role**: Hardened, defense-in-depth container execution jail for authorized actions.
 * **Hardened Isolation Standards (Restricted Pod Security Standards)**:
-  - 👤 **Non-root user (UID 1000)**: Container processes run with unprivileged user permissions.
-  - 🔒 **Read-only root filesystem (`readOnlyRootFilesystem: true`)**: Prevents unauthorized OS-level modifications, rootkit installations, or persistent binary tampering.
-  - 🚫 **Dropped ALL capabilities (`drop: ["ALL"]`)**: Linux kernel capabilities are completely stripped from the container.
-  - 🛡️ **RuntimeDefault seccomp**: Restricts dangerous system calls at the kernel level.
-  - 📦 **Ephemeral `/workspace` and `/tmp`**: Isolated tmpfs / memory-backed ephemeral storage volumes that discard all state upon session completion.
-  - 🛑 **Ingress Denied**: No inbound connections are permitted into the sandbox pod.
-  - 🌐 **Restricted Egress**: Dynamic Kubernetes `NetworkPolicy` isolates container networking, blocking cloud metadata endpoints (`169.254.169.254`) and private cluster CIDRs.
+  - **Non-root user (UID 1000)**: Container processes run with unprivileged user permissions.
+  - **Read-only root filesystem (`readOnlyRootFilesystem: true`)**: Prevents unauthorized OS-level modifications, rootkit installations, or persistent binary tampering.
+  - **Dropped ALL capabilities (`drop: ["ALL"]`)**: Linux kernel capabilities are completely stripped from the container.
+  - **RuntimeDefault seccomp**: Restricts dangerous system calls at the kernel level.
+  - **Ephemeral `/workspace` and `/tmp`**: Isolated tmpfs / memory-backed ephemeral storage volumes that discard all state upon session completion.
+  - **Ingress Denied**: No inbound connections are permitted into the sandbox pod.
+  - **Restricted Egress**: Dynamic Kubernetes `NetworkPolicy` isolates container networking, blocking cloud metadata endpoints (`169.254.169.254`) and private cluster CIDRs.
 * **Execution Modes**:
   - **Live Kubernetes Cluster**: Dispatches execution directly into managed sandbox pods via Kubernetes API / exec stream.
   - **Local Execution Fallback**: A built-in high-fidelity container sandbox emulator for environments without active Kubernetes clusters, enabling offline developer testing and instant local verification.
@@ -193,10 +145,10 @@ The Containment architecture is partitioned into **eight coordinated operational
 #### 8. Telemetry & Audit Logs
 * **Role**: Comprehensive visibility, live observability, and compliance auditing.
 * **Four Telemetry Dimensions**:
-  - 📊 **Run Metrics and Status**: Real-time tracking of run durations, risk mitigation ratios, total intercepted operations, and pod container resource health.
-  - 📝 **Action Logs and Decisions**: Step-by-step audit trails capturing exact commands, arguments, decision outcomes (`ALLOW`, `HOLD`, `DENY`), and active policy version tags.
-  - 🛡️ **Security Events and Blocked Actions**: High-priority alert streams isolating prompt-injection exploits, unauthorized egress calls, and malicious binary attempts.
-  - ⏱️ **Execution Results and Artifacts**: Live stdout/stderr terminal streaming, exit codes, diff captures, and one-click exportable, date-stamped **Printable PDF Audit Reports**.
+  - **Run Metrics and Status**: Real-time tracking of run durations, risk mitigation ratios, total intercepted operations, and pod container resource health.
+  - **Action Logs and Decisions**: Step-by-step audit trails capturing exact commands, arguments, decision outcomes (`ALLOW`, `HOLD`, `DENY`), and active policy version tags.
+  - **Security Events and Blocked Actions**: High-priority alert streams isolating prompt-injection exploits, unauthorized egress calls, and malicious binary attempts.
+  - **Execution Results and Artifacts**: Live stdout/stderr terminal streaming, exit codes, diff captures, and one-click exportable, date-stamped **Printable PDF Audit Reports**.
 
 ---
 

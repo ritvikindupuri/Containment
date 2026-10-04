@@ -63,54 +63,6 @@ The System Architecture of Containment is organized into eight coordinated opera
 </p>
 <p align="center"><em>Figure 1: System Architecture Diagram of the Containment Platform with Kubernetes Sandbox Runtime</em></p>
 
-```mermaid
-graph TD
-    %% Styling
-    classDef ui fill:#1d4ed8,stroke:#3b82f6,stroke-width:2px,color:#ffffff;
-    classDef server fill:#6b21a8,stroke:#a855f7,stroke-width:2px,color:#ffffff;
-    classDef engine fill:#c2410c,stroke:#f97316,stroke-width:2px,color:#ffffff;
-    classDef k8s fill:#047857,stroke:#10b981,stroke-width:2px,color:#ffffff;
-    classDef queue fill:#d97706,stroke:#f59e0b,stroke-width:2px,color:#ffffff;
-    classDef block fill:#b91c1c,stroke:#ef4444,stroke-width:2px,color:#ffffff;
-    classDef db fill:#0f766e,stroke:#14b8a6,stroke-width:2px,color:#ffffff;
-    classDef agent fill:#4338ca,stroke:#6366f1,stroke-width:2px,color:#ffffff;
-    classDef telemetry fill:#0369a1,stroke:#0284c7,stroke-width:2px,color:#ffffff;
-
-    %% Components
-    UI["1. User Interface<br/>Interact with agent, review approvals, manage runs"]:::ui
-    API["2. API Server<br/>Handles auth, input validation, routes requests"]:::server
-    ENGINE["3. Security Policy Engine<br/>Evaluates actions against policies & risk checks"]:::engine
-    K8S["4. Kubernetes Sandbox Runtime<br/>Executes allowed actions in isolated environment"]:::k8s
-    QUEUE["5. Approval Queue<br/>Pauses high-risk actions for human review"]:::queue
-    BLOCKED["6. Blocked Action<br/>Action is not executed & logged"]:::block
-    DB[("Supabase<br/>User auth, policies, approvals, run metadata")]:::db
-    AGENT["7. Repo-Guided Agent Run<br/>Context & Claude AI plans agent actions"]:::agent
-    TELEMETRY["8. Telemetry & Audit Logs<br/>Track runs, decisions, & execution results"]:::telemetry
-
-    %% Flow Connections
-    UI -->|Request| API
-    API -->|Action request| ENGINE
-    API <-->|Read / Write policies, decisions, run metadata| DB
-
-    %% Policy Decisions
-    ENGINE -->|Allow| K8S
-    ENGINE -->|Needs Approval| QUEUE
-    ENGINE -->|Deny| BLOCKED
-
-    %% Approval Loop
-    QUEUE -->|Approve: resume next step| K8S
-    QUEUE -->|Reject: stop run| BLOCKED
-    QUEUE -.->|Record decision: approve or reject| DB
-    QUEUE -.->|Resume next step from approval| ENGINE
-
-    %% Agent Run & Telemetry
-    AGENT -.->|Proposed actions| ENGINE
-    K8S -.->|Execution results & telemetry| TELEMETRY
-    BLOCKED -.->|Security events & rejected payloads| TELEMETRY
-    DB -.->|Historical logs & metrics| TELEMETRY
-```
-<p align="center"><em>Figure 2: Component Interaction & Decision Pipeline Topology</em></p>
-
 ### System Components & Data Flows
 
 1. **1. User Interface (UI)**:
