@@ -99,6 +99,11 @@ function createSupabaseClient() {
     },
 
     async signInWithPassword(credentials: { email: string; password?: string }) {
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.removeItem("containment_just_created_account");
+        } catch {}
+      }
       try {
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Network timeout")), 2500),
@@ -118,6 +123,11 @@ function createSupabaseClient() {
     },
 
     async signUp(credentials: { email: string; password?: string; options?: any }) {
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.setItem("containment_just_created_account", "true");
+        } catch {}
+      }
       try {
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Network timeout")), 2500),
@@ -137,6 +147,11 @@ function createSupabaseClient() {
     },
 
     async signOut() {
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.removeItem("containment_just_created_account");
+        } catch {}
+      }
       clearStoredLocalSession();
       try {
         await rawClient.auth.signOut();

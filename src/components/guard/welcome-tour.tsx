@@ -1,6 +1,5 @@
 import { useHasSession } from "@/lib/use-auth-session";
 import { useEffect, useState } from "react";
-import { useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { completeOnboarding, getOnboarding } from "@/lib/session.functions";
@@ -55,7 +54,6 @@ const SLIDES = [
  * Dismissible, persistent, and never hijacks navigation or blocks live runs.
  */
 export function WelcomeTour() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
 
@@ -70,15 +68,39 @@ export function WelcomeTour() {
   });
 
   useEffect(() => {
-    // Only auto-open if on /console, never dismissed before, and user profile not yet marked
+    // The welcome tour MUST ONLY happen for new users after they create an account,
+    // exactly ONCE. It must never happen every time an existing user uses the app.
     try {
-      if (localStorage.getItem(DISMISSED_KEY) === "true") return;
-    } catch {}
+      const isNewAccount = sessionStorage.getItem("containment_just_created_account") === "true";
+      if (!isNewAccount) {
+        return;
+      }
 
-    if (pathname === "/console" && onboarding.data && !onboarding.data.onboarded_at) {
-      setOpen(true);
+      // Check if this browser already completed or dismissed onboarding
+      const userId = onboarding.data?.userId || "default";
+      if (
+        localStorage.getItem(DISMISSED_KEY) === "true" ||
+        localStorage.getItem(`${DISMISSED_KEY}_${userId}`) === "true"
+      ) {
+        sessionStorage.removeItem("containment_just_created_account");
+        return;
+      }
+
+      // If user profile is already onboarded in the database, don't show
+      if (onboarding.data?.onboarded_at) {
+        sessionStorage.removeItem("containment_just_created_account");
+        return;
+      }
+
+      // If onboarding query has resolved and user is new, show once and consume flag
+      if (onboarding.data) {
+        sessionStorage.removeItem("containment_just_created_account");
+        setOpen(true);
+      }
+    } catch {
+      // Ignore storage errors
     }
-  }, [onboarding.data, pathname]);
+  }, [onboarding.data]);
 
   if (!open) return null;
   const slide = SLIDES[index]!;
@@ -86,7 +108,12 @@ export function WelcomeTour() {
 
   function dismiss() {
     try {
+      sessionStorage.removeItem("containment_just_created_account");
       localStorage.setItem(DISMISSED_KEY, "true");
+      const userId = onboarding.data?.userId;
+      if (userId) {
+        localStorage.setItem(`${DISMISSED_KEY}_${userId}`, "true");
+      }
     } catch {}
     void markOnboarded();
     setOpen(false);

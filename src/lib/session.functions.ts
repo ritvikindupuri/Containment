@@ -140,8 +140,10 @@ export const getOnboarding = createServerFn({ method: "GET" })
       .select("onboarded_at")
       .eq("id", context.userId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
-    return { onboarded_at: (data?.onboarded_at as string | null) ?? null };
+    return {
+      userId: context.userId,
+      onboarded_at: (data?.onboarded_at as string | null) ?? null,
+    };
   });
 
 export const completeOnboarding = createServerFn({ method: "POST" })

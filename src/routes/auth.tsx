@@ -62,10 +62,16 @@ function AuthPage() {
           toast.success("Account created — confirm your email to continue.");
           return;
         }
+        try {
+          sessionStorage.setItem("containment_just_created_account", "true");
+        } catch {}
         navigate({ to: destination, replace: true });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        try {
+          sessionStorage.removeItem("containment_just_created_account");
+        } catch {}
         navigate({ to: destination, replace: true });
       }
     } catch (error) {
