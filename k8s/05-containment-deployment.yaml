@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: containment-app
+  namespace: containment-sandbox
+  labels:
+    app.kubernetes.io/name: containment
+    app.kubernetes.io/component: control-plane
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: containment-app
+  template:
+    metadata:
+      labels:
+        app: containment-app
+    spec:
+      serviceAccountName: containment-runner
+      containers:
+        - name: containment
+          image: ghcr.io/ritvikindupuri/containment:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: K8S_IN_CLUSTER
+              value: "true"
+            - name: K8S_SANDBOX_NAMESPACE
+              value: "containment-sandbox"
+            - name: K8S_SANDBOX_IMAGE
+              value: "node:20-slim"
+          envFrom:
+            - secretRef:
+                name: containment-secrets
+                optional: true
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1024Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: containment-service
+  namespace: containment-sandbox
+  labels:
+    app.kubernetes.io/name: containment
+spec:
+  type: ClusterIP
+  selector:
+    app: containment-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000

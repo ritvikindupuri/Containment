@@ -1,0 +1,59 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sandbox-default-deny-ingress
+  namespace: containment-sandbox
+  labels:
+    app.kubernetes.io/part-of: containment
+    app.kubernetes.io/component: network-isolation
+spec:
+  podSelector:
+    matchLabels:
+      containment.dev/sandbox: "true"
+  policyTypes:
+    - Ingress
+  # Ingress is completely denied for sandbox pods — zero incoming connections allowed
+  ingress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sandbox-restricted-egress
+  namespace: containment-sandbox
+  labels:
+    app.kubernetes.io/part-of: containment
+    app.kubernetes.io/component: network-isolation
+spec:
+  podSelector:
+    matchLabels:
+      containment.dev/sandbox: "true"
+  policyTypes:
+    - Egress
+  egress:
+    # 1. Allow internal cluster DNS resolution
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # 2. Block Cloud Metadata IP (169.254.169.254) and Private RFC1918 subnets by only allowing public internet
+    # (Dynamically reconciled against policy allowed_hosts by the Containment runner)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32 # Cloud Metadata endpoint (AWS, GCP, Azure)
+              - 10.0.0.0/8         # Private cluster network
+              - 172.16.0.0/12      # Private cluster network
+              - 192.168.0.0/16     # Private cluster network
+              - 127.0.0.0/8        # Loopback
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80

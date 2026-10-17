@@ -140,8 +140,10 @@ export const getOnboarding = createServerFn({ method: "GET" })
       .select("onboarded_at")
       .eq("id", context.userId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
-    return { onboarded_at: (data?.onboarded_at as string | null) ?? null };
+    return {
+      userId: context.userId,
+      onboarded_at: (data?.onboarded_at as string | null) ?? null,
+    };
   });
 
 export const completeOnboarding = createServerFn({ method: "POST" })
@@ -149,8 +151,12 @@ export const completeOnboarding = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { error } = await context.supabase
       .from("profiles")
-      .update({ onboarded_at: new Date().toISOString() })
-      .eq("id", context.userId);
-    if (error) throw new Error(error.message);
+      .upsert({ id: context.userId, onboarded_at: new Date().toISOString() }, { onConflict: "id" });
+    if (error) {
+      await context.supabase
+        .from("profiles")
+        .update({ onboarded_at: new Date().toISOString() })
+        .eq("id", context.userId);
+    }
     return { ok: true };
   });

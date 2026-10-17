@@ -1,34 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  TerminalSquare,
-  FolderLock,
-  Network,
-  Bug,
-  ArrowRight,
-  GitBranch,
-  ScrollText,
-  PlugZap,
-  Shield,
-  Bot,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LiveDiagram } from "@/components/landing/live-diagram";
-import logoAsset from "@/assets/containment-logo.png.asset.json";
+import { ContainmentShield } from "@/components/brand/containment-shield";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Containment — stop AI agent sandbox escapes" },
+      { title: "Containment — Deterministic Security for Autonomous AI" },
       {
         name: "description",
         content:
-          "Containment is an action firewall for AI agents: every command, file path, request and tool call is checked against policy before it runs.",
+          "Containment is an action firewall and isolated container sandbox that intercepts every command, file path, request and tool call before execution.",
       },
-      { property: "og:title", content: "Containment — stop AI agent sandbox escapes" },
+      { property: "og:title", content: "Containment — Deterministic Security for Autonomous AI" },
       {
         property: "og:description",
-        content:
-          "Policy-enforced allow / hold / deny decisions for every action your AI agents propose.",
+        content: "Policy-enforced allow, hold, and deny decisions for every action your autonomous agents propose.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -37,218 +25,117 @@ export const Route = createFileRoute("/")({
   component: Landing,
 });
 
-const VECTORS = [
-  {
-    icon: TerminalSquare,
-    title: "Command execution",
-    body: "Reverse shells, curl-to-bash, container escapes.",
-  },
-  {
-    icon: FolderLock,
-    title: "Filesystem breakout",
-    body: "Traversal, SSH keys, .env, writes outside the jail.",
-  },
-  {
-    icon: Network,
-    title: "Network exfiltration",
-    body: "Cloud metadata, loopback, encoded hosts, secrets in payloads.",
-  },
-  {
-    icon: Bug,
-    title: "Prompt injection",
-    body: "Overrides in ingested text that drive state-changing tools.",
-  },
-];
-
-const STEPS = [
-  {
-    icon: GitBranch,
-    title: "Point it at a repo",
-    body: "Containment reads the code and drafts the policy.",
-  },
-  {
-    icon: Shield,
-    title: "Watch a live run",
-    body: "A real agent run, every action judged as it happens.",
-  },
-  {
-    icon: ScrollText,
-    title: "Review the trail",
-    body: "Every verdict, rule and policy version, exportable as PDF.",
-  },
-  {
-    icon: PlugZap,
-    title: "Connect production",
-    body: "One HTTP call in front of your real agent's tools.",
-  },
-];
-
 function Landing() {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center px-5">
-          <div className="flex items-center gap-2">
-            <img
-              src={logoAsset.url}
-              alt="Containment"
-              width={28}
-              height={40}
-              className="size-7 object-contain"
-            />
-            <span className="font-semibold tracking-tight">Containment</span>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/auth">Sign in</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link to="/auth">Contain my agent</Link>
+    <div className="min-h-screen bg-black text-white selection:bg-white/20 selection:text-white">
+      {/* Sleek Minimalist Header */}
+      <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-black/75 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-6xl items-center px-6">
+          <Link to="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
+            <ContainmentShield size={22} variant="logo" />
+            <span className="font-medium text-sm tracking-tight text-white">Containment</span>
+          </Link>
+
+          <div className="ml-auto flex items-center">
+            <Button
+              asChild
+              size="sm"
+              className="rounded-full bg-white text-black hover:bg-zinc-200 font-medium text-xs px-4 h-8 transition-all"
+            >
+              <Link to="/console">
+                Open App <ArrowRight className="ml-1.5 size-3.5" />
+              </Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <section className="grid-backdrop relative overflow-hidden border-b border-border">
-        <div className="pointer-events-none absolute -right-24 top-10 size-[420px] animate-aura rounded-full bg-primary/12 blur-3xl" />
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 lg:grid-cols-[1.05fr_0.95fr] lg:py-28">
-          <div className="animate-rise">
-            <span className="label-mono">Agent containment layer</span>
-            <h1 className="mt-4 text-5xl font-semibold leading-[1.03] md:text-6xl">
-              Your agent asks first.
-              <span className="block text-primary">The escape never runs.</span>
+      {/* Hero Section: OpenAI Aesthetic — Clean, Spacious, Confident */}
+      <section className="relative overflow-hidden pt-20 pb-24 sm:pt-28 sm:pb-32">
+        {/* Soft atmospheric ambient glow */}
+        <div className="pointer-events-none absolute inset-0 -top-40 flex items-center justify-center">
+          <div className="h-[500px] w-[700px] rounded-full bg-gradient-to-b from-primary/15 via-primary/5 to-transparent blur-3xl" />
+        </div>
+
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="space-y-6">
+            <h1 className="text-4xl font-normal tracking-tight text-white sm:text-6xl lg:text-7xl leading-[1.06]">
+              Deterministic safety for autonomous AI.
             </h1>
-            <p className="mt-5 max-w-lg text-lg text-muted-foreground">
-              One call before every command, file, request and tool call — answered with allow, hold
-              or deny.
+
+            <p className="max-w-lg text-base text-zinc-400 sm:text-lg font-normal leading-relaxed">
+              An action firewall and hardened container sandbox that intercepts every command, file access, and network packet before execution.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button asChild size="lg">
-                <Link to="/auth">
-                  Contain my agent <ArrowRight className="size-4" />
+
+            <div className="pt-2">
+              <Button
+                asChild
+                size="lg"
+                className="rounded-full bg-white text-black hover:bg-zinc-200 font-medium px-7 h-11 text-sm transition-all shadow-lg hover:shadow-white/10"
+              >
+                <Link to="/console">
+                  Open Application <ArrowRight className="ml-1.5 size-4" />
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline">
-                <a href="#flow">See how it works</a>
-              </Button>
             </div>
           </div>
 
-          <div className="flex justify-center" style={{ perspective: "1200px" }}>
-            <div className="relative">
-              <img
-                src={logoAsset.url}
-                alt="Containment shield mark"
-                width={57}
-                height={81}
-                className="w-52 sm:w-64 lg:w-72"
-                style={{
-                  transform: "rotateX(55deg) rotateZ(-45deg)",
-                  transformStyle: "preserve-3d",
-                }}
-              />
-
-              {/* AI agent breaking out of the shield */}
-              <svg
-                aria-hidden
-                className="pointer-events-none absolute right-8 top-4 size-24 text-destructive"
-                viewBox="0 0 100 100"
-                fill="none"
-              >
-                <path
-                  d="M10 90 C 32 76, 54 54, 76 24"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeDasharray="5 6"
-                  strokeLinecap="round"
-                  opacity="0.7"
-                />
-              </svg>
-              <div className="absolute right-4 top-0 flex size-11 items-center justify-center rounded-xl border border-destructive/50 bg-card text-destructive shadow-lg sm:size-12">
-                <Bot className="size-6" />
-              </div>
-              <span className="absolute right-0 top-14 rounded-md border border-destructive/40 bg-card/90 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-destructive">
-                escape attempt
-              </span>
+          {/* Hero Visual: Escaping Agent Brand Mark */}
+          <div className="flex justify-center lg:justify-end overflow-visible">
+            <div className="w-64 sm:w-72 lg:w-80 transition-transform duration-500 hover:scale-105 overflow-visible">
+              <ContainmentShield variant="hero" />
             </div>
           </div>
         </div>
       </section>
 
-      <section className="border-b border-border bg-surface/30">
-        <div className="mx-auto max-w-5xl px-5 py-16">
-          <span className="label-mono">Live engine · not a mockup</span>
-          <h2 className="mt-3 text-3xl font-semibold">Pick an action. Watch it get judged.</h2>
-          <div className="mt-8">
-            <LiveDiagram />
+      {/* Interactive Action Firewall Section: OpenAI-style simplicity */}
+      <section className="border-t border-white/[0.08] bg-zinc-950/40 py-24 sm:py-32">
+        <div className="mx-auto max-w-5xl px-6">
+          <div className="text-center space-y-4 mb-14">
+            <h2 className="text-3xl font-normal tracking-tight sm:text-5xl text-white">
+              See how it works.
+            </h2>
+            <p className="text-base text-zinc-400 max-w-md mx-auto leading-relaxed">
+              Test agent actions against the firewall to see instant allow, hold, and deny decisions.
+            </p>
           </div>
+
+          <LiveDiagram />
         </div>
       </section>
 
-      <section id="flow" className="mx-auto max-w-6xl px-5 py-20">
-        <span className="label-mono">Four steps</span>
-        <h2 className="mt-3 text-3xl font-semibold">From repo to production guardrails</h2>
-        <ol className="mt-10 grid gap-4 md:grid-cols-4">
-          {STEPS.map((step, index) => (
-            <li
-              key={step.title}
-              className="group relative rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:glow-ring"
+      {/* Bottom Minimalist Call to Action */}
+      <section className="border-t border-white/[0.08] bg-zinc-950/60 py-24 text-center">
+        <div className="mx-auto max-w-xl px-6 space-y-4">
+          <h2 className="text-3xl font-normal text-white sm:text-4xl tracking-tight">
+            Run autonomous agents with confidence.
+          </h2>
+          <p className="text-sm text-zinc-400 leading-relaxed">
+            Start guarding actions and testing escape prevention in under two minutes.
+          </p>
+          <div className="pt-4">
+            <Button
+              asChild
+              size="lg"
+              className="rounded-full bg-white text-black hover:bg-zinc-200 font-medium px-8 h-11 text-sm transition-all shadow-lg"
             >
-              <div className="flex size-9 items-center justify-center rounded-md bg-primary/12 text-primary transition-transform duration-300 group-hover:scale-110">
-                <step.icon className="size-4.5" />
-              </div>
-              <span className="label-mono mt-3 block">Step {index + 1}</span>
-              <p className="mt-1 font-medium">{step.title}</p>
-              <p className="mt-1.5 text-sm text-muted-foreground">{step.body}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="border-y border-border bg-surface/40">
-        <div className="mx-auto max-w-6xl px-5 py-20">
-          <span className="label-mono">Covered escape vectors</span>
-          <h2 className="mt-3 text-3xl font-semibold">Four ways an agent leaves its box</h2>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {VECTORS.map((vector) => (
-              <div
-                key={vector.title}
-                className="group rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40"
-              >
-                <vector.icon className="size-5 text-primary transition-transform duration-300 group-hover:scale-110" />
-                <p className="mt-3 font-medium">{vector.title}</p>
-                <p className="mt-1.5 text-sm text-muted-foreground">{vector.body}</p>
-              </div>
-            ))}
+              <Link to="/console">
+                Open Application <ArrowRight className="ml-1.5 size-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-3xl px-5 py-24 text-center">
-        <h2 className="text-3xl font-semibold md:text-4xl">Contain your first agent in minutes.</h2>
-        <p className="mt-4 text-muted-foreground">
-          Start with a repo. Leave with a policy, an audit trail and a live guard.
-        </p>
-        <Button asChild size="lg" className="mt-8">
-          <Link to="/auth">
-            Contain my agent <ArrowRight className="size-4" />
-          </Link>
-        </Button>
-      </section>
-
-      <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-5 py-10 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2 text-foreground">
-            <img
-              src={logoAsset.url}
-              alt="Containment"
-              width={20}
-              height={28}
-              className="size-5 object-contain"
-            />
-            Containment
+      {/* Minimal Footer */}
+      <footer className="border-t border-white/[0.08] bg-black">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-8 text-xs text-zinc-500">
+          <div className="flex items-center gap-2.5 text-zinc-400 font-medium">
+            <ContainmentShield size={16} variant="logo" />
+            <span>Containment</span>
           </div>
-          <p>Action-level containment for autonomous agents.</p>
+          <p className="font-mono text-[11px]">Action-level containment for autonomous agents</p>
         </div>
       </footer>
     </div>

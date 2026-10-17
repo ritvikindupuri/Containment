@@ -10,7 +10,8 @@ import {
   ipRateLimitKey,
 } from "@/lib/rate-limit.server";
 
-const isProduction = import.meta.env.VITE_SUPABASE_URL?.includes(".supabase.co") ?? false;
+const isProduction =
+  import.meta.env["VITE_SUPABASE_URL"]?.includes(".supabase.co") ?? false;
 
 function getSecurityHeaders(): HeadersInit {
   return {
@@ -30,10 +31,10 @@ function getSecurityHeaders(): HeadersInit {
 }
 
 function getCorsHeaders(origin: string | null): HeadersInit {
-  const allowedOriginsStr = import.meta.env.ALLOWED_ORIGINS ?? "";
+  const allowedOriginsStr = import.meta.env["ALLOWED_ORIGINS"] ?? "";
   const allowedOrigins = allowedOriginsStr
     .split(",")
-    .map((o) => o.trim())
+    .map((o: string) => o.trim())
     .filter(Boolean);
 
   let allowOrigin: string;
@@ -92,17 +93,34 @@ function redactSecrets(text: string): string {
     );
 }
 
+function sandboxFields(rawBody: unknown): {
+  shouldExecute: boolean;
+  sessionId: string;
+  actionPayload: unknown;
+} {
+  if (!rawBody || typeof rawBody !== "object" || Array.isArray(rawBody)) {
+    return { shouldExecute: false, sessionId: "api-session", actionPayload: rawBody };
+  }
+  const body = rawBody as Record<string, unknown>;
+  const { execute, session_id, sessionId, ...actionPayload } = body;
+  return {
+    shouldExecute: Boolean(execute),
+    sessionId: String(session_id || sessionId || "api-session").slice(0, 64),
+    actionPayload,
+  };
+}
+
 export const Route = createFileRoute("/api/public/v1/guard")({
   server: {
     handlers: {
-      OPTIONS: async ({ request }) => {
+      OPTIONS: async ({ request }: { request: Request }) => {
         const origin = request.headers.get("origin");
         return new Response(null, {
           status: 204,
           headers: getCorsHeaders(origin),
         });
       },
-      POST: async ({ request }) => {
+      POST: async ({ request }: { request: Request }) => {
         const origin = request.headers.get("origin");
         const clientIp = getClientIp(request);
 
@@ -121,9 +139,13 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           );
         }
 
+        const rawBody = await request.json();
+        const { shouldExecute, sessionId, actionPayload } = sandboxFields(rawBody);
+
         let parsed: GuardAction;
         try {
-          parsed = actionSchema.parse(await request.json()) as GuardAction;
+          // Strip k8s execute/session fields so .strict() action schemas still parse.
+          parsed = actionSchema.parse(actionPayload) as GuardAction;
         } catch (error) {
           return json(
             {
@@ -263,7 +285,7 @@ export const Route = createFileRoute("/api/public/v1/guard")({
             policy_version: row.version,
             api_key_id: keyRow.data.id,
             agent_id: parsed.agent_id ?? null,
-            source: "api",
+            source: shouldExecute ? "api_k8s_sandbox" : "api",
             action_type: parsed.type,
             verdict: "deny",
             risk_score: 100,
@@ -306,10 +328,46 @@ export const Route = createFileRoute("/api/public/v1/guard")({
                 },
               ],
               policy_version: row.version,
+              ...(shouldExecute
+                ? {
+                    sandbox_execution: {
+                      executed: false,
+                      reason:
+                        "Quarantined by Containment: Policy evaluation failed before entering the Kubernetes sandbox.",
+                    },
+                  }
+                : {}),
             },
             200,
             origin,
           );
+        }
+
+        // Optional Kubernetes Sandbox execution when allowed
+        let sandboxExecution: Record<string, unknown> | undefined;
+        if (shouldExecute) {
+          if (result.verdict === "allow" || (!result.enforced && row.mode === "monitor")) {
+            const { k8sSandboxClient } = await import("@/lib/sandbox/k8s-client");
+            const execResult = await k8sSandboxClient.executeInPod(sessionId, parsed, policy);
+            sandboxExecution = {
+              executed: true,
+              exit_code: execResult.exitCode,
+              stdout: execResult.stdout,
+              stderr: execResult.stderr,
+              pod_name: execResult.podName,
+              namespace: execResult.namespace,
+              duration_ms: execResult.durationMs,
+              network_policy_passed: execResult.networkPolicyPassed,
+            };
+          } else {
+            sandboxExecution = {
+              executed: false,
+              reason:
+                result.verdict === "deny"
+                  ? "Quarantined by Containment: Action scored above deny threshold and was blocked before entering the Kubernetes sandbox."
+                  : "Paused for human review: Action held in approval queue.",
+            };
+          }
         }
 
         const insertResult = await supabaseAdmin.from("decisions").insert({
@@ -318,7 +376,7 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           policy_version: row.version,
           api_key_id: keyRow.data.id,
           agent_id: parsed.agent_id ?? null,
-          source: "api",
+          source: shouldExecute ? "api_k8s_sandbox" : "api",
           action_type: result.action_type,
           verdict: result.intended_verdict,
           risk_score: result.risk_score,
@@ -326,6 +384,9 @@ export const Route = createFileRoute("/api/public/v1/guard")({
           reasons: JSON.parse(JSON.stringify(result.findings)),
           action: JSON.parse(JSON.stringify(parsed)),
           approval_state: result.verdict === "needs_approval" ? "pending" : "not_required",
+          resolution_note: sandboxExecution?.["executed"]
+            ? `Executed in K8s Sandbox Pod ${sandboxExecution["pod_name"]} (exit ${sandboxExecution["exit_code"]})`
+            : null,
         });
 
         if (insertResult.error) {
@@ -350,6 +411,7 @@ export const Route = createFileRoute("/api/public/v1/guard")({
             summary: result.summary,
             findings: result.findings,
             policy_version: row.version,
+            ...(sandboxExecution ? { sandbox_execution: sandboxExecution } : {}),
           },
           200,
           origin,

@@ -61,7 +61,20 @@ function snapshotOf(row: PolicyRow) {
   return { name: row.name, ...toPolicy(row) };
 }
 
-type AuthedSupabase = { from: (table: string) => unknown };
+type QueryResult = { error: { message: string } | null; data: unknown };
+
+type AuthedQuery = PromiseLike<QueryResult> & {
+  insert: (values: unknown) => AuthedQuery;
+  select: (columns?: string) => AuthedQuery;
+  eq: (column: string, value: unknown) => AuthedQuery;
+  order: (column: string, options?: { ascending: boolean }) => AuthedQuery;
+  limit: (count: number) => AuthedQuery;
+  maybeSingle: () => AuthedQuery;
+  single: () => AuthedQuery;
+  update: (values: unknown) => AuthedQuery;
+};
+
+type AuthedSupabase = { from: (table: string) => AuthedQuery };
 
 async function recordVersion(
   supabase: AuthedSupabase,

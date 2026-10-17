@@ -46,7 +46,8 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 function addSecurityHeaders(response: Response): Response {
   const isProduction =
-    (typeof process !== "undefined" && process.env.VITE_SUPABASE_URL?.includes(".supabase.co")) ??
+    (typeof process !== "undefined" &&
+      process.env["VITE_SUPABASE_URL"]?.includes(".supabase.co")) ??
     false;
 
   const headers = new Headers(response.headers);

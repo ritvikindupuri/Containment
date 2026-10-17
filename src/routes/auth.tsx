@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, useSearch, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ShieldHalf } from "lucide-react";
+import { ContainmentShield } from "@/components/brand/containment-shield";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
@@ -68,10 +68,16 @@ function AuthPage() {
           toast.success("Account created — confirm your email to continue.");
           return;
         }
+        try {
+          sessionStorage.setItem("containment_just_created_account", "true");
+        } catch {}
         navigate({ to: destination, replace: true });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        try {
+          sessionStorage.removeItem("containment_just_created_account");
+        } catch {}
         navigate({ to: destination, replace: true });
       }
     } catch (error) {
@@ -104,7 +110,7 @@ function AuthPage() {
     <div className="grid-backdrop flex min-h-screen items-center justify-center px-5 py-12">
       <div className="w-full max-w-md">
         <Link to="/" className="mb-6 flex items-center justify-center gap-2 text-foreground">
-          <ShieldHalf className="size-5 text-primary" />
+          <ContainmentShield size={24} variant="logo" />
           <span className="font-semibold tracking-tight">Containment</span>
         </Link>
         <Card className="glow-ring border-border bg-card">

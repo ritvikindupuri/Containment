@@ -102,6 +102,30 @@ export const STAGE_INTRO: Record<StageKey | "policy", Intro> = {
       },
     ],
   },
+  sandbox: {
+    what: "Isolated Kubernetes Pod runtime. Allowed actions execute inside hardened container sandboxes with real-time process and network telemetry.",
+    do_here:
+      "Inspect running sandbox pods, execute live test actions inside the container, and verify security isolation boundaries.",
+    next: "Review telemetry or terminate pods when test runs are complete.",
+    parts: [
+      {
+        name: "Pod Cluster Status",
+        does: "Active Kubernetes namespace, node information, and Pod Security Standards enforcement.",
+      },
+      {
+        name: "In-Pod Command Runner",
+        does: "Runs commands directly inside the isolated container as non-root UID 1000.",
+      },
+      {
+        name: "Security Posture",
+        does: "Enforces drop ALL capabilities, read-only root filesystem, and no privilege escalation.",
+      },
+      {
+        name: "Egress Quarantine",
+        does: "Blocks unauthorized network egress and cloud metadata IPs via Kubernetes NetworkPolicies.",
+      },
+    ],
+  },
 };
 
 export function StageIntro({ stage }: { stage: StageKey | "policy" }) {

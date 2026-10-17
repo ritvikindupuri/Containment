@@ -1,4 +1,9 @@
-import { Bot, ShieldHalf, Terminal, Ban, CheckCheck } from "lucide-react";
+import { Bot, Terminal, Ban, CheckCheck } from "lucide-react";
+import { ContainmentShield } from "@/components/brand/containment-shield";
+
+const ContainmentIcon = ({ className }: { className?: string }) => (
+  <ContainmentShield size={16} variant="logo" className={className} />
+);
 
 const FLOW = [
   {
@@ -7,7 +12,7 @@ const FLOW = [
     body: "Your AI agent is about to run a command, open a file, call an API or use a tool.",
   },
   {
-    icon: ShieldHalf,
+    icon: ContainmentIcon,
     title: "It asks Containment first",
     body: "Your code sends that action here with the agent key. The key tells us which workspace and policy to use.",
   },

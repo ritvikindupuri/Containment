@@ -4,14 +4,15 @@ import { listDecisions } from "@/lib/guard.functions";
 import { useRepoSession } from "@/lib/repo-session";
 import { useHasSession } from "@/lib/use-auth-session";
 
-/** The three stages of the app, in the order a company actually rolls this out. */
-export type StageKey = "setup" | "live_run" | "audit";
+
+/** The stages of the app, in the order a company rolls this out. */
+export type StageKey = "setup" | "live_run" | "audit" | "sandbox";
 
 export type Stage = {
   key: StageKey;
   step: number;
   label: string;
-  to: "/console" | "/agent-run" | "/dashboard";
+  to: "/console" | "/agent-run" | "/dashboard" | "/sandbox";
   title: string;
   body: string;
   cta: string;
@@ -36,6 +37,7 @@ export function useFlowProgress() {
   });
   const { session, loaded } = useRepoSession();
 
+
   const rows = decisions.data ?? [];
   const pendingApprovals = rows.filter((row) => row.approval_state === "pending").length;
   const resolvedApprovals = rows.filter(
@@ -50,6 +52,8 @@ export function useFlowProgress() {
   const setupDone = repoDone && policyDone && examplesDone;
   const runDone = setupDone && Boolean(session?.live_run_done);
   const auditDone = runDone && (pendingApprovals === 0 || resolvedApprovals > 0);
+  
+
 
   const stages: Stage[] = [
     {
@@ -72,10 +76,9 @@ export function useFlowProgress() {
       title: "Watch an agent get guarded",
       body: "The agent runs its whole plan for that repo, one action at a time. Risky actions stop; borderline ones wait for you.",
       cta: "Open live run",
-      unlocked: setupDone,
+      unlocked: true,
       done: runDone,
-      lockedHint:
-        "Finish setup first: ingest a repo, approve its policy and run one suggested action.",
+      lockedHint: "",
     },
     {
       key: "audit",
@@ -88,6 +91,18 @@ export function useFlowProgress() {
       unlocked: runDone,
       done: auditDone,
       lockedHint: "Complete one live run first — there is nothing to audit yet.",
+    },
+    {
+      key: "sandbox",
+      step: 4,
+      label: "K8s Sandbox",
+      to: "/sandbox",
+      title: "Inspect Kubernetes Sandbox",
+      body: "Live in-pod container execution, non-root security context, dynamic egress NetworkPolicy, and execution telemetry.",
+      cta: "Open K8s Sandbox",
+      unlocked: runDone,
+      done: false,
+      lockedHint: "Kubernetes Sandbox is locked. Complete an agent run first to unlock in-pod container execution and telemetry.",
     },
   ];
 

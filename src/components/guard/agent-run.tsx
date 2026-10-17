@@ -15,13 +15,19 @@ import {
   ShieldAlert,
   ChevronDown,
   FileDown,
+  Boxes,
 } from "lucide-react";
 import { ingestRepo, type AgentRunPlan } from "@/lib/agent-run.functions";
 import { useRepoSession } from "@/lib/repo-session";
 import { evaluateAgentStep, getApproval, type ApprovalRow } from "@/lib/guard.functions";
+import { executeInKubernetesSandbox } from "@/lib/sandbox.functions";
+import { KubernetesSandboxHud } from "@/components/guard/k8s-sandbox-hud";
+import { KubernetesExecutionDrawer } from "@/components/guard/k8s-execution-drawer";
+import type { SandboxExecutionResult } from "@/lib/sandbox/types";
 import { ApprovalCard } from "@/components/guard/approval-card";
 import { VerdictBadge, RiskMeter } from "@/components/guard/verdict-badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -43,18 +49,12 @@ const TYPE_META: Record<ActionType, { icon: typeof Terminal; label: string }> = 
   tool_call: { icon: Wrench, label: "tool call" },
 };
 
-const EXAMPLES = [
-  "https://github.com/expressjs/express",
-  "https://github.com/psf/requests",
-  "https://github.com/vitejs/vite",
-];
+const EXAMPLES = ["https://github.com/expressjs/express", "https://github.com/psf/requests", "https://github.com/vitejs/vite"];
 
 function actionLine(action: AgentRunPlan["steps"][number]["action"]): string {
   if (action.type === "shell") return action.command ?? "";
-  if (action.type === "network")
-    return `${action.url ?? ""}${action.body ? ` — body: ${action.body.slice(0, 120)}` : ""}`;
-  if (action.type === "tool_call")
-    return `${action.tool ?? ""}(${JSON.stringify(action.args ?? {})})`;
+  if (action.type === "network") return `${action.url ?? ""}${action.body ? ` — body: ${action.body.slice(0, 120)}` : ""}`;
+  if (action.type === "tool_call") return `${action.tool ?? ""}(${JSON.stringify(action.args ?? {})})`;
   return action.path ?? "";
 }
 
@@ -63,11 +63,15 @@ export function AgentRun() {
   const ingest = useServerFn(ingestRepo);
   const evaluate = useServerFn(evaluateAgentStep);
   const loadApproval = useServerFn(getApproval);
+  const executeK8s = useServerFn(executeInKubernetesSandbox);
 
   const { session, start, update } = useRepoSession();
   const [url, setUrl] = useState("");
   const [plan, setPlan] = useState<AgentRunPlan | null>(null);
   const [results, setResults] = useState<Record<number, StepResult>>({});
+  const [useK8sSandbox, setUseK8sSandbox] = useState(true);
+  const [k8sExecutions, setK8sExecutions] = useState<Record<number, SandboxExecutionResult>>({});
+  const [activePodName, setActivePodName] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [open, setOpen] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
@@ -78,17 +82,21 @@ export function AgentRun() {
   const ingestMutation = useMutation({
     mutationFn: (value: string) => ingest({ data: { url: value } }),
     onSuccess: (value) => {
-      setPlan(value as AgentRunPlan);
-      start(value as AgentRunPlan);
+      const p = value as AgentRunPlan;
+      setPlan(p);
+      start(p);
       setResults({});
+      setK8sExecutions({});
       setActiveIndex(null);
       setOpen(null);
-      toast.success(
-        `Agent cloned ${value.repo.owner}/${value.repo.repo} and planned ${value.steps.length} actions.`,
-      );
+      if (p.pod?.name) {
+        setActivePodName(p.pod.name);
+        toast.success(`Provisioned ephemeral sandbox pod ${p.pod.name} in containment-sandbox. Planned ${p.steps.length} actions.`);
+      } else {
+        toast.success(`Agent cloned ${p.repo.owner}/${p.repo.repo} and planned ${p.steps.length} actions.`);
+      }
     },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not read that repository"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not read that repository"),
   });
 
   async function runFrom(startIndex: number) {
@@ -97,6 +105,7 @@ export function AgentRun() {
     setAwaiting(null);
     if (startIndex === 0) {
       setResults({});
+      setK8sExecutions({});
       setOpen(null);
       setStartedAt(new Date().toISOString());
       setFinishedAt(null);
@@ -117,9 +126,31 @@ export function AgentRun() {
           toast.warning("The agent is paused — this action needs your approval.");
           return;
         }
+
+        // When allowed (or in monitor mode), execute inside the Kubernetes Sandbox Pod
+        if (useK8sSandbox && (value.verdict === "allow" || (!value.enforced && value.policy_mode === "monitor"))) {
+          try {
+            const k8sRes = await executeK8s({
+              data: {
+                action: step.action,
+                sessionId: plan.pod?.name || plan.repo.repo,
+              },
+            });
+            if (k8sRes.sandbox) {
+              setK8sExecutions((prev) => ({ ...prev, [index]: k8sRes.sandbox! }));
+            }
+            if (k8sRes.pod?.name) {
+              setActivePodName(k8sRes.pod.name);
+            }
+          } catch {
+            // Execution failed inside pod (e.g. read-only filesystem or timeout)
+          }
+        }
+
         await new Promise((resolve) => setTimeout(resolve, 260));
       }
       queryClient.invalidateQueries({ queryKey: ["decisions"] });
+      queryClient.invalidateQueries({ queryKey: ["k8s-sandbox-pods"] });
       setFinishedAt(new Date().toISOString());
       update({ live_run_done: true });
     } catch (error) {
@@ -148,6 +179,9 @@ export function AgentRun() {
         operator: data.user?.email ?? "Containment workspace",
         startedAt,
         finishedAt: finishedAt ?? (running ? null : startedAt),
+        k8sSandboxEnabled: useK8sSandbox,
+        k8sNamespace: "containment-sandbox",
+        k8sRuntimeClass: "gVisor runsc",
       });
       const href = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -177,9 +211,8 @@ export function AgentRun() {
             Run a real agent on a real repo
           </CardTitle>
           <CardDescription>
-            Paste any public GitHub repo. An AI agent reads the repository, writes the exact
-            line-by-line actions it would take to install and run it, then asks Containment before
-            each one — and you watch every verdict.
+            Paste any public GitHub repo. An AI agent reads the repository, writes the exact line-by-line actions it
+            would take to install and run it, then asks Containment before each one — and you watch every verdict.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -192,15 +225,8 @@ export function AgentRun() {
                 if (event.key === "Enter" && url.trim()) ingestMutation.mutate(url.trim());
               }}
             />
-            <Button
-              onClick={() => ingestMutation.mutate(url.trim())}
-              disabled={!url.trim() || ingestMutation.isPending}
-            >
-              {ingestMutation.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Github className="size-4" />
-              )}
+            <Button onClick={() => ingestMutation.mutate(url.trim())} disabled={!url.trim() || ingestMutation.isPending}>
+              {ingestMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Github className="size-4" />}
               {ingestMutation.isPending ? "Cloning & planning…" : "Ingest repo"}
             </Button>
           </div>
@@ -225,15 +251,68 @@ export function AgentRun() {
 
       {plan ? (
         <>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
+              <div className="flex items-center gap-2">
+                <Boxes className="size-4 text-primary" />
+                <span className="text-xs font-semibold">Kubernetes Sandbox Execution</span>
+                <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-[10px] text-primary">
+                  Defense-in-Depth Active
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Execute safe actions in K8s pod:</span>
+                <Switch
+                  checked={useK8sSandbox}
+                  onCheckedChange={setUseK8sSandbox}
+                  aria-label="Toggle Kubernetes sandbox execution"
+                />
+              </div>
+            </div>
+
+            {plan.pod && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/5 p-3.5">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
+                    <Boxes className="size-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-semibold text-foreground">
+                        {plan.pod.name}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-mono text-emerald-400">
+                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        1/1 Running in {plan.pod.namespace}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Locked down: Non-root (UID {plan.pod.securityContext.runAsUser}) · Read-only rootfs · Dropped Capabilities · Ephemeral /workspace (2Gi)
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
+                  <span className="rounded bg-surface/60 px-2 py-1 border border-border">IP: {plan.pod.ip}</span>
+                  <span className="rounded bg-surface/60 px-2 py-1 border border-border">Node: {plan.pod.nodeName}</span>
+                </div>
+              </div>
+            )}
+
+            {useK8sSandbox && (
+              <KubernetesSandboxHud
+                activePodName={activePodName || plan.pod?.name || null}
+                isExecuting={running}
+              />
+            )}
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
             <Card className={cn("border", sealed ? "border-success/40" : "border-destructive/50")}>
               <CardContent className="space-y-4 pt-6">
                 <div
                   className={cn(
                     "relative rounded-lg border-2 border-dashed p-6 text-center",
-                    sealed
-                      ? "border-success/50 bg-success/5"
-                      : "border-destructive/60 bg-destructive/5",
+                    sealed ? "border-success/50 bg-success/5" : "border-destructive/60 bg-destructive/5",
                   )}
                 >
                   {sealed ? (
@@ -262,20 +341,11 @@ export function AgentRun() {
                     { label: "Blocked", value: blocked, tone: "text-destructive" },
                     { label: "Approval", value: approval, tone: "text-warning" },
                     { label: "Allowed", value: allowed, tone: "text-success" },
-                    {
-                      label: "Escaped",
-                      value: escaped,
-                      tone: escaped ? "text-destructive" : "text-muted-foreground",
-                    },
+                    { label: "Escaped", value: escaped, tone: escaped ? "text-destructive" : "text-muted-foreground" },
                   ].map((item) => (
-                    <div
-                      key={item.label}
-                      className="rounded-md border border-border bg-surface/40 p-3"
-                    >
+                    <div key={item.label} className="rounded-md border border-border bg-surface/40 p-3">
                       <dd className={cn("font-mono text-xl", item.tone)}>{item.value}</dd>
-                      <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                        {item.label}
-                      </dt>
+                      <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">{item.label}</dt>
                     </div>
                   ))}
                 </dl>
@@ -284,24 +354,13 @@ export function AgentRun() {
                     {plan.repo.owner}/{plan.repo.repo}
                   </p>
                   <p className="mt-1">
-                    {plan.repo.language ?? "unknown"} · {plan.repo.file_count} files ·{" "}
-                    {plan.repo.stars} stars
+                    {plan.repo.language ?? "unknown"} · {plan.repo.file_count} files · {plan.repo.stars} stars
                   </p>
-                  <p className="mt-1">
-                    Read: {plan.repo.scanned_files.join(", ") || "no setup files"}
-                  </p>
+                  <p className="mt-1">Read: {plan.repo.scanned_files.join(", ") || "no setup files"}</p>
                 </div>
                 <Button className="w-full" onClick={() => void runFrom(0)} disabled={running}>
-                  {running ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Play className="size-4" />
-                  )}
-                  {running
-                    ? "Agent is acting…"
-                    : done.length
-                      ? "Run again"
-                      : `Run ${plan.steps.length} actions`}
+                  {running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+                  {running ? "Agent is acting…" : done.length ? "Run again" : `Run ${plan.steps.length} actions`}
                 </Button>
                 <Button
                   variant="outline"
@@ -313,9 +372,8 @@ export function AgentRun() {
                   Download PDF report
                 </Button>
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  A dated, print-ready report: containment status, the four counters, the policy
-                  version that ruled, every action in a table and the rule-by-rule reasoning behind
-                  each verdict.
+                  A dated, print-ready report: containment status, the four counters, the policy version that ruled,
+                  every action in a table and the rule-by-rule reasoning behind each verdict.
                 </p>
               </CardContent>
             </Card>
@@ -324,12 +382,11 @@ export function AgentRun() {
               {awaiting ? (
                 <div className="rounded-lg border border-warning/60 bg-warning/5 p-4">
                   <p className="text-sm font-medium">
-                    Agent paused at step {awaiting.index + 1} — it needs a human before it can
-                    continue
+                    Agent paused at step {awaiting.index + 1} — it needs a human before it can continue
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Release it and the agent carries on from the next action. Hold it and the run
-                    stops here. Either way the choice is recorded in the audit trail.
+                    Release it and the agent carries on from the next action. Hold it and the run stops here. Either way
+                    the choice is recorded in the audit trail.
                   </p>
                   <div className="mt-3">
                     <ApprovalCard
@@ -375,8 +432,7 @@ export function AgentRun() {
                         </pre>
                         {step.action.untrusted_context ? (
                           <p className="mt-2 rounded-md border border-warning/30 bg-warning/5 p-2 text-[11px] text-muted-foreground">
-                            Influenced by untrusted content: “
-                            {step.action.untrusted_context.slice(0, 240)}”
+                            Influenced by untrusted content: “{step.action.untrusted_context.slice(0, 240)}”
                           </p>
                         ) : null}
                       </div>
@@ -407,41 +463,46 @@ export function AgentRun() {
                             className="mt-2 flex items-center gap-1 text-xs text-primary"
                             onClick={() => setOpen(open === index ? null : index)}
                           >
-                            <ChevronDown
-                              className={cn(
-                                "size-3.5 transition-transform",
-                                open === index && "rotate-180",
-                              )}
-                            />
-                            {result.findings.length} rule{result.findings.length === 1 ? "" : "s"}{" "}
-                            fired
+                            <ChevronDown className={cn("size-3.5 transition-transform", open === index && "rotate-180")} />
+                            {result.findings.length} rule{result.findings.length === 1 ? "" : "s"} fired
                           </button>
                         ) : null}
                         {open === index ? (
                           <ul className="mt-2 space-y-2">
                             {result.findings.map((finding) => (
-                              <li
-                                key={finding.rule}
-                                className="rounded-md border border-border bg-surface/40 p-2"
-                              >
+                              <li key={finding.rule} className="rounded-md border border-border bg-surface/40 p-2">
                                 <div className="flex items-center justify-between gap-2">
                                   <p className="text-xs font-medium">{finding.title}</p>
                                   <span className="font-mono text-[10px] text-muted-foreground">
                                     {finding.rule} · +{finding.score}
                                   </span>
                                 </div>
-                                <p className="mt-1 text-[11px] text-muted-foreground">
-                                  {finding.detail}
-                                </p>
+                                <p className="mt-1 text-[11px] text-muted-foreground">{finding.detail}</p>
                                 {finding.evidence ? (
-                                  <p className="mt-1 font-mono text-[10px] text-destructive">
-                                    {finding.evidence}
-                                  </p>
+                                  <p className="mt-1 font-mono text-[10px] text-destructive">{finding.evidence}</p>
                                 ) : null}
                               </li>
                             ))}
                           </ul>
                         ) : null}
+
+                        {useK8sSandbox && (
+                          <div className="mt-3">
+                            {result.verdict === "allow" || (!result.enforced && result.policy_mode === "monitor") ? (
+                              <KubernetesExecutionDrawer result={k8sExecutions[index] ?? null} />
+                            ) : result.verdict === "deny" ? (
+                              <KubernetesExecutionDrawer
+                                blocked={true}
+                                reason="Quarantined by Containment: Action scored above risk threshold and was dropped before reaching the Kubernetes sandbox container."
+                              />
+                            ) : (
+                              <KubernetesExecutionDrawer
+                                blocked={true}
+                                reason="Held for Human Approval: Action execution in Kubernetes Sandbox is paused awaiting review."
+                              />
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : null}
                   </div>
