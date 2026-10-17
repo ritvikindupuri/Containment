@@ -1,4 +1,12 @@
-import { ShieldCheck, ShieldAlert, TerminalSquare, FolderLock, Network, Bug, Bot } from "lucide-react";
+import {
+  ShieldCheck,
+  ShieldAlert,
+  TerminalSquare,
+  FolderLock,
+  Network,
+  Bug,
+  Bot,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Finding, Verdict, Vector } from "@/lib/guard/types";
 
@@ -9,7 +17,11 @@ export type StatusDecision = {
   created_at: string;
 };
 
-const VECTORS: Array<{ key: Vector; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+const VECTORS: Array<{
+  key: Vector;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [
   { key: "shell", label: "Command", icon: TerminalSquare },
   { key: "filesystem", label: "Filesystem", icon: FolderLock },
   { key: "network", label: "Network", icon: Network },
@@ -53,7 +65,9 @@ export function ContainmentStatus({ decisions }: { decisions: StatusDecision[] }
             {breached ? (
               <ShieldAlert className="size-8 shrink-0 text-destructive" />
             ) : (
-              <ShieldCheck className={cn("size-8 shrink-0", idle ? "text-muted-foreground" : "text-success")} />
+              <ShieldCheck
+                className={cn("size-8 shrink-0", idle ? "text-muted-foreground" : "text-success")}
+              />
             )}
             <h2 className="text-2xl font-semibold tracking-tight">
               {idle ? "No agent activity yet" : breached ? "Escape not blocked" : "Sandbox intact"}
@@ -126,7 +140,9 @@ export function ContainmentStatus({ decisions }: { decisions: StatusDecision[] }
             <span
               className={cn(
                 "absolute -bottom-3 rounded-full border bg-background px-3 py-1 font-mono text-[10px]",
-                breached ? "border-destructive/50 text-destructive" : "border-border text-muted-foreground",
+                breached
+                  ? "border-destructive/50 text-destructive"
+                  : "border-border text-muted-foreground",
               )}
             >
               {stopped.length} blocked · {escaped.length} through

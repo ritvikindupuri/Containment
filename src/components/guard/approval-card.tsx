@@ -37,7 +37,8 @@ export function ApprovalCard({
   const reviewMutation = useMutation({
     mutationFn: () => runReview({ data: { id: current.id } }),
     onSuccess: (next) => setCurrent(next as ApprovalRow),
-    onError: (error) => toast.error(error instanceof Error ? error.message : "The reviewer could not run"),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "The reviewer could not run"),
   });
 
   const resolveMutation = useMutation({
@@ -49,10 +50,15 @@ export function ApprovalCard({
       setChanging(false);
       queryClient.invalidateQueries({ queryKey: ["approvals"] });
       queryClient.invalidateQueries({ queryKey: ["decisions"] });
-      toast.success(value.approval_state === "approved" ? "Released — the agent may act." : "Held — the agent is blocked.");
+      toast.success(
+        value.approval_state === "approved"
+          ? "Released — the agent may act."
+          : "Held — the agent is blocked.",
+      );
       onResolved?.(value);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not record that decision"),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not record that decision"),
   });
 
   const findings = Array.isArray(current.reasons) ? (current.reasons as Finding[]) : [];
@@ -65,7 +71,11 @@ export function ApprovalCard({
     <div
       className={cn(
         "rounded-lg border p-4",
-        pending ? "border-warning/50 bg-warning/5" : approved ? "border-success/40" : "border-destructive/40",
+        pending
+          ? "border-warning/50 bg-warning/5"
+          : approved
+            ? "border-success/40"
+            : "border-destructive/40",
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -105,8 +115,17 @@ export function ApprovalCard({
           <p className="flex items-center gap-2 text-sm font-medium">
             <Bot className="size-4 text-primary" /> AI reviewer
           </p>
-          <Button size="sm" variant="outline" onClick={() => reviewMutation.mutate()} disabled={reviewMutation.isPending}>
-            {reviewMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4" />}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => reviewMutation.mutate()}
+            disabled={reviewMutation.isPending}
+          >
+            {reviewMutation.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Bot className="size-4" />
+            )}
             {current.reviewed_at ? "Review again" : "Ask the reviewer"}
           </Button>
         </div>
@@ -114,19 +133,25 @@ export function ApprovalCard({
           <div className="mt-2 space-y-1">
             <p className="text-sm">
               Recommends{" "}
-              <span className={current.review_recommendation === "approve" ? "text-success" : "text-destructive"}>
+              <span
+                className={
+                  current.review_recommendation === "approve" ? "text-success" : "text-destructive"
+                }
+              >
                 {current.review_recommendation === "approve" ? "release" : "hold"}
               </span>
             </p>
             <p className="text-sm text-muted-foreground">{current.review_reasoning}</p>
             {current.review_conditions ? (
-              <p className="text-xs text-muted-foreground">Safe only if: {current.review_conditions}</p>
+              <p className="text-xs text-muted-foreground">
+                Safe only if: {current.review_conditions}
+              </p>
             ) : null}
           </div>
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">
-            Ask the reviewer and it reads this action, the rules that fired and your policy, then recommends release or
-            hold in plain English. You still make the call.
+            Ask the reviewer and it reads this action, the rules that fired and your policy, then
+            recommends release or hold in plain English. You still make the call.
           </p>
         )}
       </div>
@@ -138,14 +163,14 @@ export function ApprovalCard({
       {decideOpen ? (
         <div className="mt-3 space-y-2">
           <p className="text-xs text-muted-foreground">
-            Two options, and that's it:{" "}
-            <span className="text-success">release</span> lets the agent run this exact action, or{" "}
-            <span className="text-destructive">hold</span> keeps it blocked. The AI reads above are advice only — you
-            decide.
+            Two options, and that's it: <span className="text-success">release</span> lets the agent
+            run this exact action, or <span className="text-destructive">hold</span> keeps it
+            blocked. The AI reads above are advice only — you decide.
             {!pending ? (
               <>
                 {" "}
-                Current decision: <span className="text-foreground">{approved ? "released" : "held"}</span>.
+                Current decision:{" "}
+                <span className="text-foreground">{approved ? "released" : "held"}</span>.
               </>
             ) : null}
           </p>
@@ -180,10 +205,10 @@ export function ApprovalCard({
           </div>
         </div>
       ) : (
-
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
-            {approved ? "Released" : "Held"} {current.resolved_at ? new Date(current.resolved_at).toLocaleString() : ""}
+            {approved ? "Released" : "Held"}{" "}
+            {current.resolved_at ? new Date(current.resolved_at).toLocaleString() : ""}
             {current.resolution_note ? ` — “${current.resolution_note}”` : ""}
           </p>
           <Button size="sm" variant="outline" onClick={() => setChanging(true)}>

@@ -21,11 +21,11 @@ export function GettingStarted() {
         <div className="min-w-0 flex-1">
           <h2 className="text-base font-semibold">Start here — each step unlocks the next</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Containment checks every action your AI agent wants to take and answers allow, needs approval or deny.
+            Containment checks every action your AI agent wants to take and answers allow, needs
+            approval or deny.
             {pendingApprovals > 0 && stages[2]?.unlocked
               ? ` ${pendingApprovals} action${pendingApprovals === 1 ? "" : "s"} are waiting for your approval in step 3.`
               : ""}
-
           </p>
 
           <ol className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -51,17 +51,30 @@ export function GettingStarted() {
                         : "border-border text-muted-foreground",
                     )}
                   >
-                    {stage.done ? <Check className="size-3" /> : stage.unlocked ? stage.step : <Lock className="size-2.5" />}
+                    {stage.done ? (
+                      <Check className="size-3" />
+                    ) : stage.unlocked ? (
+                      stage.step
+                    ) : (
+                      <Lock className="size-2.5" />
+                    )}
                   </span>
                   <p className="text-sm font-medium">
                     {stage.step}. {stage.label}
                   </p>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">{stage.unlocked ? stage.body : stage.lockedHint}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {stage.unlocked ? stage.body : stage.lockedHint}
+                </p>
                 {stage.done ? (
                   <p className="mt-3 text-xs text-success">Done</p>
                 ) : stage.unlocked ? (
-                  <Button asChild size="sm" variant={stage === next ? "default" : "outline"} className="mt-3">
+                  <Button
+                    asChild
+                    size="sm"
+                    variant={stage === next ? "default" : "outline"}
+                    className="mt-3"
+                  >
                     <Link to={stage.to}>
                       {stage.cta}
                       <ArrowRight className="size-3.5" />

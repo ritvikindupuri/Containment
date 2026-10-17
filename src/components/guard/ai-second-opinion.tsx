@@ -25,7 +25,8 @@ export function AiSecondOpinion({ decisionId }: { decisionId: string }) {
   const mutation = useMutation({
     mutationFn: () => advise({ data: { id: decisionId } }),
     onSuccess: (value) => setAdvice(value as RiskAdviceRow),
-    onError: (error) => toast.error(error instanceof Error ? error.message : "The risk layer could not run"),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "The risk layer could not run"),
   });
 
   return (
@@ -34,8 +35,17 @@ export function AiSecondOpinion({ decisionId }: { decisionId: string }) {
         <p className="flex items-center gap-2 text-sm font-medium">
           <Brain className="size-4 text-primary" /> AI risk layer (advisory)
         </p>
-        <Button size="sm" variant="outline" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-          {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Brain className="size-4" />}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+        >
+          {mutation.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Brain className="size-4" />
+          )}
           {advice ? "Read again" : "Get a second opinion"}
         </Button>
       </div>
@@ -66,14 +76,15 @@ export function AiSecondOpinion({ decisionId }: { decisionId: string }) {
             ))}
           </ul>
           <p className="text-[11px] text-muted-foreground">
-            Advisory only. The deterministic rules decided this verdict and this read is stored on the audit entry.
+            Advisory only. The deterministic rules decided this verdict and this read is stored on
+            the audit entry.
           </p>
         </div>
       ) : (
         <p className="mt-2 text-sm text-muted-foreground">
-          The rules already decided this action. Ask the AI layer for nuance the rules can't express — a command that
-          looks suspicious even though nothing matched, or context that makes a flagged action look routine. It never
-          changes the verdict.
+          The rules already decided this action. Ask the AI layer for nuance the rules can't express
+          — a command that looks suspicious even though nothing matched, or context that makes a
+          flagged action look routine. It never changes the verdict.
         </p>
       )}
     </div>

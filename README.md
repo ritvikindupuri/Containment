@@ -237,6 +237,10 @@ You can run Containment locally using **Bun** or **NPM**. Ensure you have Node.j
    ANTHROPIC_API_KEY="your_anthropic_api_key"
    # Optional: specify model override (defaults to claude-opus-5)
    # ANTHROPIC_MODEL="claude-opus-5"
+
+   # CORS allowlist (required in production; empty allows all in development)
+   # ALLOWED_ORIGINS="https://app.example.com,https://staging.example.com"
+   ALLOWED_ORIGINS=""
    ```
 
 4. **Run the Development Server**
@@ -275,6 +279,10 @@ You can run Containment locally using **Bun** or **NPM**. Ensure you have Node.j
    ANTHROPIC_API_KEY="your_anthropic_api_key"
    # Optional: specify model override (defaults to claude-opus-5)
    # ANTHROPIC_MODEL="claude-opus-5"
+
+   # CORS allowlist (required in production; empty allows all in development)
+   # ALLOWED_ORIGINS="https://app.example.com,https://staging.example.com"
+   ALLOWED_ORIGINS=""
    ```
 
 4. **Run the Development Server**

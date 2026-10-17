@@ -61,7 +61,20 @@ function snapshotOf(row: PolicyRow) {
   return { name: row.name, ...toPolicy(row) };
 }
 
-type AuthedSupabase = { from: (table: string) => any };
+type QueryResult = { error: { message: string } | null; data: unknown };
+
+type AuthedQuery = PromiseLike<QueryResult> & {
+  insert: (values: unknown) => AuthedQuery;
+  select: (columns?: string) => AuthedQuery;
+  eq: (column: string, value: unknown) => AuthedQuery;
+  order: (column: string, options?: { ascending: boolean }) => AuthedQuery;
+  limit: (count: number) => AuthedQuery;
+  maybeSingle: () => AuthedQuery;
+  single: () => AuthedQuery;
+  update: (values: unknown) => AuthedQuery;
+};
+
+type AuthedSupabase = { from: (table: string) => AuthedQuery };
 
 async function recordVersion(
   supabase: AuthedSupabase,
@@ -109,7 +122,9 @@ async function ensurePolicy(supabase: AuthedSupabase, userId: string): Promise<P
 
 export const getPolicy = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<PolicyRow> => ensurePolicy(context.supabase as AuthedSupabase, context.userId));
+  .handler(async ({ context }): Promise<PolicyRow> =>
+    ensurePolicy(context.supabase as AuthedSupabase, context.userId),
+  );
 
 export const listPolicyVersions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -200,7 +215,12 @@ export const listKeys = createServerFn({ method: "GET" })
 
 export const createKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { name: string }) => ({ name: String(input.name ?? "").trim().slice(0, 60) || "Agent key" }))
+  .inputValidator((input: { name: string }) => ({
+    name:
+      String(input.name ?? "")
+        .trim()
+        .slice(0, 60) || "Agent key",
+  }))
   .handler(async ({ data, context }) => {
     const { generateApiKey, hashApiKey } = await import("@/lib/guard/keys.server");
     const policy = await ensurePolicy(context.supabase as AuthedSupabase, context.userId);
@@ -262,20 +282,24 @@ export const evaluateFromConsole = createServerFn({ method: "POST" })
     const policy = toPolicy(row);
     const result = evaluateAction(data as GuardAction, policy);
 
-    const logged = await supabase.from("decisions").insert({
-      user_id: userId,
-      policy_id: row.id,
-      policy_version: row.version,
-      approval_state: result.intended_verdict === "needs_approval" ? "pending" : "none",
-      agent_id: data.agent_id ?? "console",
-      source: "console",
-      action_type: result.action_type,
-      verdict: result.intended_verdict,
-      risk_score: result.risk_score,
-      enforced: result.enforced,
-      reasons: JSON.parse(JSON.stringify(result.findings)),
-      action: JSON.parse(JSON.stringify(data)),
-    }).select("id").single();
+    const logged = await supabase
+      .from("decisions")
+      .insert({
+        user_id: userId,
+        policy_id: row.id,
+        policy_version: row.version,
+        approval_state: result.intended_verdict === "needs_approval" ? "pending" : "none",
+        agent_id: data.agent_id ?? "console",
+        source: "console",
+        action_type: result.action_type,
+        verdict: result.intended_verdict,
+        risk_score: result.risk_score,
+        enforced: result.enforced,
+        reasons: JSON.parse(JSON.stringify(result.findings)),
+        action: JSON.parse(JSON.stringify(data)),
+      })
+      .select("id")
+      .single();
     if (logged.error) throw new Error(logged.error.message);
 
     return {
@@ -296,20 +320,24 @@ export const evaluateAgentStep = createServerFn({ method: "POST" })
     const policy = toPolicy(row);
     const result = evaluateAction(data as GuardAction, policy);
 
-    const logged = await supabase.from("decisions").insert({
-      user_id: userId,
-      policy_id: row.id,
-      policy_version: row.version,
-      approval_state: result.intended_verdict === "needs_approval" ? "pending" : "none",
-      agent_id: data.agent_id ?? "agent-run",
-      source: "agent_run",
-      action_type: result.action_type,
-      verdict: result.intended_verdict,
-      risk_score: result.risk_score,
-      enforced: result.enforced,
-      reasons: JSON.parse(JSON.stringify(result.findings)),
-      action: JSON.parse(JSON.stringify(data)),
-    }).select("id").single();
+    const logged = await supabase
+      .from("decisions")
+      .insert({
+        user_id: userId,
+        policy_id: row.id,
+        policy_version: row.version,
+        approval_state: result.intended_verdict === "needs_approval" ? "pending" : "none",
+        agent_id: data.agent_id ?? "agent-run",
+        source: "agent_run",
+        action_type: result.action_type,
+        verdict: result.intended_verdict,
+        risk_score: result.risk_score,
+        enforced: result.enforced,
+        reasons: JSON.parse(JSON.stringify(result.findings)),
+        action: JSON.parse(JSON.stringify(data)),
+      })
+      .select("id")
+      .single();
     if (logged.error) throw new Error(logged.error.message);
 
     return {
@@ -499,5 +527,13 @@ export const adviseOnDecision = createServerFn({ method: "POST" })
       .eq("user_id", context.userId);
     if (saved.error) throw new Error(saved.error.message);
 
-    return { ...advice, advisor_score: advice.score, advisor_level: advice.level, advisor_headline: advice.headline, advisor_concerns: advice.concerns, advisor_agrees: advice.agrees, advisor_at } as RiskAdviceRow;
+    return {
+      ...advice,
+      advisor_score: advice.score,
+      advisor_level: advice.level,
+      advisor_headline: advice.headline,
+      advisor_concerns: advice.concerns,
+      advisor_agrees: advice.agrees,
+      advisor_at,
+    } as RiskAdviceRow;
   });

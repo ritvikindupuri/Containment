@@ -33,7 +33,10 @@ export function RiskMeter({ score }: { score: number }) {
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-        <div className={cn("h-full rounded-full transition-all", tone)} style={{ width: `${Math.max(2, score)}%` }} />
+        <div
+          className={cn("h-full rounded-full transition-all", tone)}
+          style={{ width: `${Math.max(2, score)}%` }}
+        />
       </div>
       <span className="font-mono text-xs text-muted-foreground">{score}</span>
     </div>
