@@ -1,0 +1,21 @@
+name: Kubernetes admission replay
+on:
+  pull_request:
+    paths:
+      - k8s/05-containment-deployment.yaml
+permissions:
+  contents: read
+jobs:
+  admission:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, containment-validation]
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      CONTAINMENT_VALIDATOR: ${{ vars.CONTAINMENT_VALIDATOR }}
+    steps:
+      - name: Compare pinned manifests
+        shell: pwsh
+        run: |
+          python "$env:CONTAINMENT_VALIDATOR" "$env:BASE_SHA" "$env:HEAD_SHA"
+          exit $LASTEXITCODE
