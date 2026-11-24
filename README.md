@@ -11,7 +11,7 @@ For a comprehensive technical deep-dive into the security models, core component
 
 * **Interactive Sandbox Simulation**: Input a public GitHub repository URL, instantly clone and map its code structure, and review a tailored step-by-step action plan displaying both standard operations and realistic sandbox-escape attempts.
 * **Hardened Kubernetes Sandbox Runtime (Defense in Depth)**: Authorized agent operations execute inside an isolated Kubernetes Sandbox Pod running under Kubernetes **Restricted Pod Security Standards** (`pod-security.kubernetes.io/enforce: restricted`), dropping all Linux capabilities (`drop: [ALL]`), read-only root filesystems, non-root user UID 1000, dynamic egress `NetworkPolicy` isolation, and optional `gVisor` (`runsc`) / `Kata Containers` microVM isolation.
-* **Deterministic Guard Engine**: Uses command normalization, relative path-traversal resolution, DNS rebinding detection, and context-aware prompt-injection scanning to calculate a dynamic risk score under 10ms.
+* **Deterministic Guard Engine**: Uses command normalization, relative path-traversal resolution, flagging of known wildcard-DNS rebinding services (nip.io, sslip.io, xip.io), and pattern-based prompt-injection scanning to calculate a deterministic, in-process risk score.
 * **Dynamic Security Policy & Version Control**: Instantly toggle protection vectors (Command Execution, Filesystem Access, Network Egress, Prompt Injection), set custom risk thresholds, configure domain allowlists, and track complete policy version histories.
 * **Advisory AI Risk Layer**: Deterministic rules stay the enforcer; on top of them, an optional AI second opinion scores each logged action, explains it in plain English, and flags when it *disagrees* with the rule-based verdict — surfacing missing rules and false positives without ever changing a decision.
 * **Human-in-the-Loop Approvals**: Pause and gate risky actions in a centralized queue, complete with an automated, context-aware AI security review suggesting clear preconditions and recommendations.
@@ -76,13 +76,13 @@ The Containment architecture is partitioned into **eight coordinated operational
 ---
 
 #### 3. Security Policy Engine
-* **Role**: The core deterministic action firewall and real-time risk evaluator (<10ms).
+* **Role**: The core deterministic action firewall and real-time risk evaluator (deterministic, in-process).
 * **Six Core Security Checks**:
   1. **Shell Command Checks**: Normalizes terminal commands (stripping escape tricks, base64 payloads, obfuscated subshells), verifies against command denial lists, and catches reverse shell patterns (`bash -i >& /dev/tcp/...`, `/dev/udp/`, `mkfifo`, etc.).
   2. **Filesystem Access Checks**: Evaluates path traversal attempts (`../`, symlink following), detects sensitive file access (`/etc/shadow`, `~/.ssh`, `/proc/1/root`, `~/.aws/credentials`), and enforces strict write-path boundaries (e.g., scoping writes exclusively to `/workspace` and `/tmp`).
-  3. **Network and SSRF Checks**: Restricts outbound traffic to domain allowlists (e.g., package registries, authorized APIs), drops unverified external endpoints, mitigates DNS rebinding, and blocks SSRF to cloud metadata IPs (`169.254.169.254`) and internal RFC1918 subnets.
+  3. **Network and SSRF Checks**: Restricts outbound traffic to domain allowlists (e.g., package registries, authorized APIs), drops unverified external endpoints, flags known wildcard-DNS rebinding services (nip.io, sslip.io, xip.io), and blocks SSRF to cloud metadata IPs (`169.254.169.254`) and internal RFC1918 subnets.
   4. **Tool Call Validation**: Inspects autonomous agent tool invocations, validating parameter types, required arguments, and high-impact operations (e.g., PR creation, database seeding, email dispatch).
-  5. **Prompt-Injection Checks**: Performs context-aware semantic analysis over untrusted inputs (README files, issue comments, scraped web pages, downloaded scripts) to catch instruction overrides, indirect prompt injections, and jailbreaks.
+  5. **Prompt-Injection Checks**: Performs pattern-based prompt-injection detection over untrusted inputs (README files, issue comments, scraped web pages, downloaded scripts) to catch instruction overrides, indirect prompt injections, and jailbreaks.
   6. **Risk Scoring and Rule Matching**: Aggregates violation weights into a deterministic 0–100 composite risk score and matches against policy thresholds.
 * **Three Decision Verdicts**:
   - **`Allow` (Green)** $\rightarrow$ Action is verified safe and adheres to all allowlists. Dispatched to **4. Kubernetes Sandbox Runtime**.
@@ -100,10 +100,10 @@ The Containment architecture is partitioned into **eight coordinated operational
   - **RuntimeDefault seccomp**: Restricts dangerous system calls at the kernel level.
   - **Ephemeral `/workspace` and `/tmp`**: Isolated tmpfs / memory-backed ephemeral storage volumes that discard all state upon session completion.
   - **Ingress Denied**: No inbound connections are permitted into the sandbox pod.
-  - **Restricted Egress**: Dynamic Kubernetes `NetworkPolicy` isolates container networking, blocking cloud metadata endpoints (`169.254.169.254`) and private cluster CIDRs.
+  - **Restricted Egress**: Kubernetes `NetworkPolicy` manifests deny ingress and restrict egress, blocking cloud metadata endpoints (`169.254.169.254`) and private cluster CIDRs; per-request egress is also enforced against the policy allowlist in the app.
 * **Execution Modes**:
   - **Live Kubernetes Cluster**: Dispatches execution directly into managed sandbox pods via Kubernetes API / exec stream.
-  - **Local Execution Fallback**: A built-in high-fidelity container sandbox emulator for environments without active Kubernetes clusters, enabling offline developer testing and instant local verification.
+  - **Local Execution Fallback**: Without an active Kubernetes cluster, approved commands run directly on the host in a temporary workspace. This mode is not isolated and is intended for development only.
 
 ---
 
@@ -168,7 +168,7 @@ The Containment architecture is partitioned into **eight coordinated operational
 * **AI & Planning Model**: [Anthropic Claude](https://anthropic.com/) (**Claude Opus 5** default, with **Claude Sonnet 5.5** fallback via native Anthropic Messages API)
 * **Frontend Framework**: [React 19](https://react.dev/) with [TypeScript](https://www.typescriptlang.org/)
 * **Routing & Meta-framework**: [TanStack Start](https://tanstack.com/start/latest) / [TanStack React Router](https://tanstack.com/router/latest)
-* **Container Sandbox & Orchestration**: [Kubernetes](https://kubernetes.io/) with Pod Security Standards (Restricted), [gVisor](https://gvisor.dev/) (`runsc`), and dynamic `NetworkPolicy` egress isolation
+* **Container Sandbox & Orchestration**: [Kubernetes](https://kubernetes.io/) with Pod Security Standards (Restricted), [gVisor](https://gvisor.dev/) (`runsc`), and `NetworkPolicy` egress isolation
 * **CSS & Design**: [Tailwind CSS v4](https://tailwindcss.com/) with [Shadcn UI](https://ui.shadcn.com/) and [Lucide Icons](https://lucide.dev/)
 * **Database & Auth**: [Supabase](https://supabase.com/) (Postgres DB, GoTrue Authentication, Row-Level Security)
 * **PDF Engine**: [jsPDF](https://github.com/parallax/jsPDF) for generating printable reports
@@ -180,7 +180,7 @@ The Containment architecture is partitioned into **eight coordinated operational
 
 Containment implements a two-tier **Defense-in-Depth** model separating policy enforcement from container execution:
 
-1. **Tier 1: Pre-Execution Action Guard Firewall (<10ms)**
+1. **Tier 1: Pre-Execution Action Guard Firewall (deterministic, in-process)**
    - Intercepts proposed agent shell commands, file accesses, outbound network requests, and tool calls.
    - Evaluates commands against regex and normalization engines to catch escape tricks (`bash -i >& /dev/tcp/...`, `/proc/1/root`, `curl|sh`, etc.).
    - Actions judged dangerous (`DENY`) or borderline (`NEEDS_APPROVAL`) are quarantined immediately and **never dispatched to Kubernetes**.
@@ -195,11 +195,11 @@ Containment implements a two-tier **Defense-in-Depth** model separating policy e
      - Seccomp profile enforced (`RuntimeDefault`)
      - Kernel isolation via **gVisor (`runsc`)** or **Kata Containers**
    - **Egress Network Isolation**:
-     - Kubernetes `NetworkPolicy` isolates each sandbox pod, denying incoming ingress and restricting egress solely to cluster DNS and policy `allowed_hosts`.
+     - Kubernetes `NetworkPolicy` manifests deny all ingress to sandbox pods and restrict egress; per-request egress is also checked against the policy `allowed_hosts` in the app.
      - Requests to AWS/GCP/Azure Cloud Metadata IPs (`169.254.169.254`) and internal RFC1918 subnets are blocked at the network interface.
    - **Dual-Mode Execution**:
      - Works natively with live Kubernetes clusters (in-cluster ServiceAccount, kubeconfig, or API token).
-     - Includes a built-in, high-fidelity Kubernetes Sandbox Emulator for instant local development and offline demonstrations.
+     - Without a cluster, a local fallback runs approved commands directly on the host in a temporary workspace (not isolated; for development only).
 
 Production Kubernetes deployment manifests and setup guides are located in the [`k8s/`](./k8s) directory.
 
