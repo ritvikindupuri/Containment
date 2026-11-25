@@ -35,7 +35,8 @@ export const ingestRepo = createServerFn({ method: "POST" })
     // Dynamically provision a dedicated, locked-down Kubernetes Sandbox pod for this repository
     let podInfo: AgentRunPlan["pod"] = undefined;
     try {
-      const pod = await k8sSandboxClient.createEphemeralPod(context.repo, context.repo);
+      const repoUrl = `https://github.com/${context.owner}/${context.repo}`;
+      const pod = await k8sSandboxClient.createEphemeralPod(context.repo, context.repo, repoUrl);
       podInfo = {
         name: pod.name,
         namespace: pod.namespace,
@@ -50,8 +51,12 @@ export const ingestRepo = createServerFn({ method: "POST" })
           allowPrivilegeEscalation: pod.securityContext.allowPrivilegeEscalation,
         },
       };
-    } catch {
-      // Continue even if pod creation fallback is needed
+    } catch (err) {
+      // If no cluster is configured, the live run can still evaluate actions in emulation.
+      // On a real cluster, fail ingest so an empty workspace is not silently used.
+      if (process.env["K8S_EMULATION_MODE"] !== "true") {
+        throw err instanceof Error ? err : new Error("Failed to provision the Kubernetes sandbox pod");
+      }
     }
 
     return { repo: context, pod: podInfo, ...plan };

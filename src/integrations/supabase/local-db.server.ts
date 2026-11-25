@@ -98,6 +98,11 @@ export class LocalQueryBuilder implements PromiseLike<{ data: any; error: any }>
     return this;
   }
 
+  in(field: string, values: any[]) {
+    this.filters.push((row) => values.includes(row[field]));
+    return this;
+  }
+
   order(field: string, options?: { ascending?: boolean }) {
     this.orderField = field;
     this.ascending = options?.ascending ?? true;

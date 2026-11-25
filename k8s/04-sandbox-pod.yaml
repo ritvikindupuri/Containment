@@ -24,6 +24,15 @@ spec:
       image: node:20-slim
       command: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
       workingDir: /workspace
+      env:
+        - name: HOME
+          value: /tmp
+        - name: NPM_CONFIG_CACHE
+          value: /tmp/npm-cache
+        - name: NPM_CONFIG_UPDATE_NOTIFIER
+          value: "false"
+        - name: XDG_CACHE_HOME
+          value: /tmp/cache
       securityContext:
         allowPrivilegeEscalation: false
         readOnlyRootFilesystem: true

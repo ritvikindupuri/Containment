@@ -74,9 +74,16 @@ export const DEFAULT_POLICY: GuardPolicy = {
   block_filesystem: true,
   block_network: true,
   block_injection: true,
-  allowed_hosts: ["api.openai.com", "registry.npmjs.org", "pypi.org"],
+  allowed_hosts: ["api.openai.com", "registry.npmjs.org", "pypi.org", "api.github.com", "github.com"],
   allowed_write_paths: ["/workspace", "/tmp"],
-  approval_required_tools: ["send_email", "transfer_funds", "delete_records"],
+  approval_required_tools: [
+    "send_email",
+    "transfer_funds",
+    "delete_records",
+    "publish_package",
+    "deploy_production",
+    "exec_host_command",
+  ],
   deny_threshold: 60,
   approval_threshold: 35,
 };

@@ -30,12 +30,31 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # 1. Allow internal cluster DNS resolution
+    # 1. Allow internal cluster DNS resolution.
+    # Traffic is often addressed to the kube-dns Service ClusterIP (Kind default
+    # 10.96.0.0/12) before DNAT, so a podSelector alone is not enough.
     - to:
         - namespaceSelector: {}
           podSelector:
             matchLabels:
               k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/12
       ports:
         - protocol: UDP
           port: 53

@@ -118,9 +118,36 @@ export function AgentRun() {
         setResults((prev) => ({ ...prev, [index]: value }));
         queryClient.invalidateQueries({ queryKey: ["decisions"] });
 
-        if (value.verdict === "needs_approval" && value.decision_id) {
+        if (value.verdict === "needs_approval") {
           // The policy will not decide this one alone: hold the run until a human does.
-          const row = (await loadApproval({ data: { id: value.decision_id } })) as ApprovalRow;
+          let row: ApprovalRow | null = null;
+          if (value.decision_id) {
+            try {
+              row = (await loadApproval({ data: { id: value.decision_id } })) as ApprovalRow;
+            } catch {
+              row = null;
+            }
+          }
+          if (!row) {
+            row = {
+              id: value.decision_id || `pending-${index}`,
+              agent_id: step.action.agent_id ?? "agent-run",
+              source: "agent_run",
+              action_type: step.action.type,
+              risk_score: value.risk_score,
+              reasons: value.findings as never,
+              action: step.action as never,
+              policy_version: value.policy_version,
+              approval_state: "pending",
+              review_recommendation: null,
+              review_reasoning: null,
+              review_conditions: null,
+              reviewed_at: null,
+              resolved_at: null,
+              resolution_note: null,
+              created_at: new Date().toISOString(),
+            };
+          }
           setAwaiting({ index, row });
           queryClient.invalidateQueries({ queryKey: ["approvals"] });
           toast.warning("The agent is paused — this action needs your approval.");

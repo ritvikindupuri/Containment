@@ -34,7 +34,7 @@ export class KubernetesSandboxClient {
       namespace: process.env["K8S_SANDBOX_NAMESPACE"] || "containment-sandbox",
       image: process.env["K8S_SANDBOX_IMAGE"] || "node:20-slim",
       runtimeClass: process.env["K8S_SANDBOX_RUNTIME_CLASS"] || "gvisor",
-      timeoutSeconds: Number(process.env["K8S_SANDBOX_TIMEOUT"] || 30),
+      timeoutSeconds: Number(process.env["K8S_SANDBOX_TIMEOUT"] || 180),
       forceEmulation: process.env["K8S_EMULATION_MODE"] === "true",
     };
   }
@@ -46,24 +46,119 @@ export class KubernetesSandboxClient {
   /**
    * Helper that executes kubectl natively on Windows or via WSL fallback.
    */
-  public async executeKubectl(args: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  public async executeKubectl(
+    args: string,
+    options?: { timeoutMs?: number },
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    const timeout = options?.timeoutMs ?? Math.max(this.config.timeoutSeconds * 1000, 30_000);
     try {
-      const res = await execAsync(`kubectl ${args}`, { timeout: 15_000 });
+      const res = await execAsync(`kubectl ${args}`, { timeout, maxBuffer: 16 * 1024 * 1024 });
       return { stdout: res.stdout, stderr: res.stderr, exitCode: 0 };
     } catch (errWin: any) {
+      // execAsync throws on non-zero exit; surface stdout/stderr to the caller.
+      if (typeof errWin?.code === "number" && errWin.killed !== true) {
+        return {
+          stdout: errWin.stdout ?? "",
+          stderr: errWin.stderr ?? errWin.message ?? "Kubectl execution failed",
+          exitCode: errWin.code,
+        };
+      }
       try {
         const res = await execAsync(
           `wsl -d Ubuntu-26.04 kubectl ${args}`,
-          { timeout: 15_000 },
+          { timeout, maxBuffer: 16 * 1024 * 1024 },
         );
         return { stdout: res.stdout, stderr: res.stderr, exitCode: 0 };
       } catch (errWsl: any) {
         return {
           stdout: errWin.stdout ?? errWsl.stdout ?? "",
-          stderr: errWin.stderr ?? errWsl.stderr ?? "Kubectl execution failed",
-          exitCode: typeof errWin.code === "number" ? errWin.code : (errWsl.code ?? 1),
+          stderr: errWin.stderr ?? errWsl.stderr ?? errWsl.message ?? "Kubectl execution failed",
+          exitCode: typeof errWin.code === "number" ? errWin.code : (typeof errWsl.code === "number" ? errWsl.code : 1),
         };
       }
+    }
+  }
+
+  /** Accept only http(s) repository URLs, or an owner/repo shorthand. */
+  private resolveRepoUrl(input: string): string | null {
+    const trimmed = input.trim();
+    if (!trimmed) return null;
+    if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(trimmed)) {
+      return `https://github.com/${trimmed}.git`;
+    }
+    try {
+      const url = new URL(trimmed);
+      if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+      if (url.username || url.password) return null;
+      return url.toString();
+    } catch {
+      return null;
+    }
+  }
+
+  private workspacePath(filePath: string): string {
+    const trimmed = (filePath ?? "").trim();
+    if (!trimmed) return "/workspace";
+    if (trimmed.startsWith("/")) return trimmed;
+    return `/workspace/${trimmed.replace(/^\.\//, "")}`;
+  }
+
+  /**
+   * Writable caches live on the /tmp emptyDir because the container root is read-only.
+   */
+  private sandboxShell(command: string): string {
+    const setup =
+      "export HOME=/tmp NPM_CONFIG_CACHE=/tmp/npm-cache NPM_CONFIG_UPDATE_NOTIFIER=false XDG_CACHE_HOME=/tmp/cache PIP_CACHE_DIR=/tmp/pip-cache GOCACHE=/tmp/go-cache GOPATH=/tmp/go CARGO_HOME=/tmp/cargo; mkdir -p /tmp/npm-cache /tmp/cache /workspace; cd /workspace; ";
+    return setup + command;
+  }
+
+  /**
+   * Clone the ingested repository on the control plane and copy it into the pod's /workspace.
+   * When package.json is present, also run npm install so later install/build/test steps can succeed.
+   */
+  private async seedWorkspace(podName: string, repoUrl: string): Promise<void> {
+    const resolved = this.resolveRepoUrl(repoUrl);
+    if (!resolved) {
+      throw new Error("Cannot seed sandbox workspace: invalid repository URL");
+    }
+
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "containment-seed-"));
+    const srcDir = path.join(tmpRoot, "repo");
+    try {
+      await execAsync(`git clone --depth 1 --single-branch ${JSON.stringify(resolved)} ${JSON.stringify(srcDir)}`, {
+        timeout: 90_000,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+      });
+
+      await execAsync(
+        `tar -C ${JSON.stringify(srcDir)} -cf - . | kubectl exec -i -n ${this.config.namespace} ${podName} -- /bin/sh -c "mkdir -p /tmp/seed && tar -C /tmp/seed --no-same-owner -xf - && cp -R /tmp/seed/. /workspace/ && rm -rf /tmp/seed && ls /workspace | wc -l"`,
+        { timeout: 90_000, maxBuffer: 64 * 1024 * 1024, shell: "/bin/bash" },
+      );
+
+      let hasPackageJson = false;
+      try {
+        await fs.access(path.join(srcDir, "package.json"));
+        hasPackageJson = true;
+      } catch {
+        hasPackageJson = false;
+      }
+
+      if (hasPackageJson) {
+        // Install on the control plane (pod DNS is not always available), then copy node_modules in.
+        await execAsync("npm install --no-audit --no-fund", {
+          cwd: srcDir,
+          timeout: 240_000,
+          maxBuffer: 16 * 1024 * 1024,
+          env: { ...process.env, NPM_CONFIG_UPDATE_NOTIFIER: "false" },
+        });
+        await execAsync(
+          `tar -C ${JSON.stringify(srcDir)} -cf - node_modules package-lock.json | kubectl exec -i -n ${this.config.namespace} ${podName} -- /bin/sh -c "mkdir -p /tmp/nm && tar -C /tmp/nm --no-same-owner -xf - && cp -R /tmp/nm/. /workspace/ && rm -rf /tmp/nm && test -d /workspace/node_modules"`,
+          { timeout: 120_000, maxBuffer: 64 * 1024 * 1024, shell: "/bin/bash" },
+        );
+      }
+
+    } finally {
+      await fs.rm(tmpRoot, { recursive: true, force: true });
     }
   }
 
@@ -175,7 +270,7 @@ export class KubernetesSandboxClient {
   /**
    * Dynamically provisions a dedicated, locked-down Kubernetes Pod for a repo session.
    */
-  public async createEphemeralPod(repoName: string, sessionId: string): Promise<SandboxPod> {
+  public async createEphemeralPod(repoName: string, sessionId: string, repoUrl?: string): Promise<SandboxPod> {
     const cleanRepo = repoName.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase().slice(0, 16) || "agent";
     const shortId = Math.random().toString(36).substring(2, 7);
     const podName = `sandbox-${cleanRepo}-${shortId}`;
@@ -217,6 +312,23 @@ spec:
       capabilities:
         drop:
         - ALL
+    env:
+    - name: HOME
+      value: /tmp
+    - name: NPM_CONFIG_CACHE
+      value: /tmp/npm-cache
+    - name: NPM_CONFIG_UPDATE_NOTIFIER
+      value: "false"
+    - name: XDG_CACHE_HOME
+      value: /tmp/cache
+    - name: PIP_CACHE_DIR
+      value: /tmp/pip-cache
+    - name: GOCACHE
+      value: /tmp/go-cache
+    - name: GOPATH
+      value: /tmp/go
+    - name: CARGO_HOME
+      value: /tmp/cargo
     volumeMounts:
     - name: workspace-volume
       mountPath: /workspace
@@ -237,22 +349,57 @@ spec:
 
     const wslPath = tmpFilePath.replace(/^([a-zA-Z]):/, (_, drive) => `/mnt/${drive.toLowerCase()}`).replace(/\\/g, "/");
 
-    try {
-      await this.executeKubectl(`apply -f "${wslPath}"`);
-    } catch {
-      // fallback if cluster write fails
+    const applyRes = await this.executeKubectl(`apply -f "${wslPath}"`);
+    if (applyRes.exitCode !== 0) {
+      throw new Error(applyRes.stderr || applyRes.stdout || "kubectl apply failed while creating the sandbox pod");
+    }
+
+    const waitRes = await this.executeKubectl(
+      `wait --for=condition=Ready pod/${podName} -n ${this.config.namespace} --timeout=90s`,
+      { timeoutMs: 120_000 },
+    );
+    if (waitRes.exitCode !== 0) {
+      const desc = await this.executeKubectl(`describe pod ${podName} -n ${this.config.namespace}`);
+      throw new Error(waitRes.stderr || desc.stdout || "sandbox pod did not become Ready");
+    }
+
+    let ip = "";
+    let status: "Pending" | "Running" | "Succeeded" | "Failed" | "Terminated" = "Running";
+    let nodeName = "containment-control-plane";
+    let uid = `pod-${podName}`;
+    let createdAt = new Date().toISOString();
+    const getRes = await this.executeKubectl(`get pod ${podName} -n ${this.config.namespace} -o json`);
+    if (getRes.exitCode === 0 && getRes.stdout.trim()) {
+      try {
+        const item = JSON.parse(getRes.stdout);
+        ip = item.status?.podIP || ip;
+        const phase = item.status?.phase;
+        if (phase === "Pending" || phase === "Running" || phase === "Succeeded" || phase === "Failed" || phase === "Terminated") {
+          status = phase;
+        }
+
+        nodeName = item.spec?.nodeName || nodeName;
+        uid = item.metadata?.uid || uid;
+        createdAt = item.metadata?.creationTimestamp || createdAt;
+      } catch {
+        // keep defaults if the JSON cannot be parsed
+      }
+    }
+
+    if (repoUrl) {
+      await this.seedWorkspace(podName, repoUrl);
     }
 
     const pod: SandboxPod = {
-      id: `pod-${podName}`,
+      id: uid,
       name: podName,
       namespace: this.config.namespace,
-      status: "Running",
+      status,
       image: this.config.image,
-      ip: `10.244.0.${Math.floor(Math.random() * 200) + 10}`,
-      nodeName: "containment-control-plane",
+      ip: ip || "pending",
+      nodeName,
       sessionId,
-      createdAt: new Date().toISOString(),
+      createdAt,
       securityContext: { ...DEFAULT_SECURITY_CONTEXT },
       volumes: [
         { name: "workspace-volume", mountPath: "/workspace", sizeLimit: "2Gi", readOnly: false },
@@ -262,7 +409,6 @@ spec:
 
     this.activePods.set(sessionId, pod);
     this.activePods.set(podName, pod);
-    this.isClusterAvailable = true;
     return pod;
   }
 
@@ -282,19 +428,7 @@ spec:
       }
     }
 
-    // If template pod exists in cluster, use it as fallback
-    const templatePod = this.activePods.get("sandbox-agent-template");
-    if (templatePod && templatePod.status === "Running") {
-      return templatePod;
-    }
-
-    for (const pod of this.activePods.values()) {
-      if (pod.status === "Running") {
-        return pod;
-      }
-    }
-
-    return this.createEphemeralPod(sessionId || "agent", sessionId);
+    return this.createEphemeralPod(sessionId || agentId || "agent", sessionId);
   }
 
   /**
@@ -360,7 +494,8 @@ spec:
         let executedViaKubectl = false;
         if (this.isClusterAvailable) {
           const res = await this.executeKubectl(
-            `exec -n ${pod.namespace} ${pod.name} -- /bin/sh -c "${cmd.replace(/"/g, '\\"')}"`,
+            `exec -n ${pod.namespace} ${pod.name} -- /bin/sh -c "${this.sandboxShell(cmd).replace(/"/g, '\"')}"`,
+            { timeoutMs: Math.max(this.config.timeoutSeconds * 1000, 180_000) },
           );
           stdout = res.stdout;
           stderr = res.stderr;
@@ -418,13 +553,29 @@ spec:
       }
 
       case "file_read": {
-        const filePath = action.path ?? "";
+        const filePath = this.workspacePath(action.path ?? "");
         target = filePath;
 
         if (this.isClusterAvailable) {
-          const res = await this.executeKubectl(
-            `exec -n ${pod.namespace} ${pod.name} -- cat "${filePath}"`,
+          const safePath = filePath.replace(/["$`\\]/g, "");
+          let res = await this.executeKubectl(
+            `exec -n ${pod.namespace} ${pod.name} -- cat "${safePath}"`,
+            { timeoutMs: 30_000 },
           );
+          if (res.exitCode !== 0) {
+            const base = path.basename(safePath).replace(/["$`\\]/g, "");
+            const found = await this.executeKubectl(
+              `exec -n ${pod.namespace} ${pod.name} -- /bin/sh -c "find /workspace -maxdepth 3 -iname ${JSON.stringify(base).replace(/"/g, '\\"')} -type f | head -1"`,
+              { timeoutMs: 30_000 },
+            );
+            const alt = (found.stdout || "").trim().split("\n")[0]?.trim();
+            if (alt) {
+              res = await this.executeKubectl(
+                `exec -n ${pod.namespace} ${pod.name} -- cat "${alt.replace(/"/g, "")}"`,
+                { timeoutMs: 30_000 },
+              );
+            }
+          }
           if (res.exitCode === 0) {
             stdout = `[k8s-pod: ${pod.name}] (path: ${filePath})\n${res.stdout.slice(0, 5000)}`;
             exitCode = 0;
